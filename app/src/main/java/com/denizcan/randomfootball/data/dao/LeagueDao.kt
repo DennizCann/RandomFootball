@@ -26,4 +26,7 @@ interface LeagueDao {
 
     @Query("SELECT * FROM leagues WHERE leagueId = :leagueId")
     fun getLeagueById(leagueId: Long): Flow<League?>
+
+    @Query("SELECT * FROM leagues WHERE leagueId = :leagueId")
+    suspend fun getLeagueByIdSync(leagueId: Long): League?
 } 

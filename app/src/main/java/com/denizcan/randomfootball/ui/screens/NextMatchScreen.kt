@@ -19,7 +19,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.R
+import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.ui.components.TopBar
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +36,34 @@ fun NextMatchScreen(
     onOpponentClick: (Long) -> Unit = {},
     onPlayMatchClick: (Long) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val teamDao = remember { database.teamDao() }
+    val fixtureDao = remember { database.fixtureDao() }
+
+    // Bir sonraki maçı al
+    val nextFixture = fixtureDao.getNextFixture(teamId).collectAsState(initial = null)
+    
+    // Ev sahibi ve deplasman takımlarını al
+    val homeTeam = remember(nextFixture.value?.homeTeamId) {
+        nextFixture.value?.homeTeamId?.let { 
+            teamDao.getTeamById(it)
+        } ?: flowOf(null)
+    }.collectAsState(initial = null)
+
+    val awayTeam = remember(nextFixture.value?.awayTeamId) {
+        nextFixture.value?.awayTeamId?.let { 
+            teamDao.getTeamById(it)
+        } ?: flowOf(null)
+    }.collectAsState(initial = null)
+
+    // Rakip takımı bul
+    val opponentTeamId = remember(nextFixture.value, teamId) {
+        nextFixture.value?.let {
+            if (it.homeTeamId == teamId) it.awayTeamId else it.homeTeamId
+        }
+    }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -71,11 +105,16 @@ fun NextMatchScreen(
                         MenuCard(
                             title = "Opponent",
                             icon = Icons.Default.Person,
-                            onClick = { onOpponentClick(teamId) }
+                            onClick = { 
+                                opponentTeamId?.let { opponentId ->
+                                    onOpponentClick(opponentId)
+                                }
+                            }
                         )
                     }
                 }
 
+                // Maç kartı
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -89,11 +128,13 @@ fun NextMatchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = "Next Match",
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
+                        nextFixture.value?.let { fixture ->
+                            Text(
+                                text = "Week ${fixture.week}",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
                         
                         Spacer(modifier = Modifier.height(8.dp))
                         
@@ -103,7 +144,7 @@ fun NextMatchScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Team 1",
+                                text = homeTeam.value?.name ?: "TBD",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF4CAF50)
@@ -117,7 +158,7 @@ fun NextMatchScreen(
                             )
                             
                             Text(
-                                text = "Team 2",
+                                text = awayTeam.value?.name ?: "TBD",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF4CAF50)
@@ -130,7 +171,9 @@ fun NextMatchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
-                        .clickable { onPlayMatchClick(teamId) },
+                        .clickable { 
+                            nextFixture.value?.fixtureId?.let { onPlayMatchClick(it) }
+                        },
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Row(

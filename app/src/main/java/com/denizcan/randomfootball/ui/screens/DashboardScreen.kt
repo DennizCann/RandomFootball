@@ -34,7 +34,8 @@ fun DashboardScreen(
     onLeagueTableClick: (Long) -> Unit,
     onTransfersClick: (Long) -> Unit,
     onStatisticsClick: (Long) -> Unit,
-    onNextMatchClick: (Long) -> Unit
+    onNextMatchClick: (Long) -> Unit,
+    onLeagueTableDetailClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
@@ -128,7 +129,9 @@ fun DashboardScreen(
                     MenuCard(
                         title = "League Table",
                         icon = Icons.Default.List,
-                        onClick = { onLeagueTableClick(teamId) }
+                        onClick = { 
+                            onLeagueTableClick(teamId)
+                        }
                     )
                 }
                 

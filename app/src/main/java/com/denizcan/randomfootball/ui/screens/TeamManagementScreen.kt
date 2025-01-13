@@ -154,7 +154,7 @@ fun TeamManagementScreen(
 }
 
 @Composable
-private fun TacticalBoard(
+internal fun TacticalBoard(
     players: List<Player>,
     formation: String,
     primaryColor: Color,

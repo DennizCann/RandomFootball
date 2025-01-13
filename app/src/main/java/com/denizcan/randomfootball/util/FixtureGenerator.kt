@@ -7,41 +7,59 @@ object FixtureGenerator {
     fun generateFixtures(teams: List<Team>, leagueId: Long, gameId: Long): List<Fixture> {
         val fixtures = mutableListOf<Fixture>()
         val teamCount = teams.size
-        val teamsList = teams.toMutableList()
+        val rounds = teamCount - 1
+        val matchesPerRound = teamCount / 2
+        
+        // Takımların listesini oluştur (ilk takım sabit kalacak)
+        val teamsList = teams.map { it.teamId }.toMutableList()
         
         // İlk yarı fikstürü
-        for (week in 0 until teamCount-1) {
-            for (i in 0 until teamCount/2) {
-                val home = teamsList[i]
-                val away = teamsList[teamCount-1-i]
+        for (round in 0 until rounds) {
+            val roundFixtures = mutableListOf<Fixture>()
+            
+            // Her haftadaki maçları oluştur
+            for (match in 0 until matchesPerRound) {
+                val home = teamsList[match]
+                val away = teamsList[teamCount - 1 - match]
                 
-                fixtures.add(
+                // Çift sayılı haftalarda ev sahibi/deplasman takımlarını değiştir
+                // Bu sayede takımlar daha dengeli bir şekilde ev/deplasman maçı yapacak
+                val fixture = if ((round + match) % 2 == 0) {
                     Fixture(
                         gameId = gameId,
                         leagueId = leagueId,
-                        homeTeamId = home.teamId,
-                        awayTeamId = away.teamId,
-                        week = week + 1
+                        homeTeamId = home,
+                        awayTeamId = away,
+                        week = round + 1
                     )
-                )
+                } else {
+                    Fixture(
+                        gameId = gameId,
+                        leagueId = leagueId,
+                        homeTeamId = away,
+                        awayTeamId = home,
+                        week = round + 1
+                    )
+                }
+                
+                roundFixtures.add(fixture)
             }
-            // Takımları döndür (ilk takım sabit)
-            teamsList.subList(1, teamsList.size).let { subList ->
-                val last = subList.last()
-                subList.clear()
-                subList.add(0, last)
-                subList.addAll(teams.subList(1, teams.size - 1))
-            }
+            
+            fixtures.addAll(roundFixtures)
+            
+            // Takım listesini döndür (ilk takım sabit)
+            val lastTeam = teamsList.removeAt(teamsList.lastIndex)
+            teamsList.add(1, lastTeam)
         }
         
-        // İkinci yarı fikstürü
+        // İkinci yarı fikstürü (ev/deplasman takımları yer değiştirir)
         val firstHalf = fixtures.toList()
         firstHalf.forEach { fixture ->
             fixtures.add(
                 fixture.copy(
                     homeTeamId = fixture.awayTeamId,
                     awayTeamId = fixture.homeTeamId,
-                    week = fixture.week + teamCount - 1
+                    week = fixture.week + rounds
                 )
             )
         }

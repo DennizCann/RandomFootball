@@ -49,6 +49,15 @@ sealed class Screen(val route: String) {
     object LeagueFixtures : Screen("league_fixtures/{leagueId}") {
         fun createRoute(leagueId: Long) = "league_fixtures/$leagueId"
     }
+    object LeagueTableDetail : Screen("league_table_detail/{leagueId}") {
+        fun createRoute(leagueId: Long) = "league_table_detail/$leagueId"
+    }
+    object Opponent : Screen("opponent/{teamId}/{opponentId}") {
+        fun createRoute(teamId: Long, opponentId: Long) = "opponent/$teamId/$opponentId"
+    }
+    object PlayMatch : Screen("play_match/{fixtureId}") {
+        fun createRoute(fixtureId: Long) = "play_match/$fixtureId"
+    }
 }
 
 @Composable
@@ -180,7 +189,10 @@ fun NavGraph(navController: NavHostController) {
                 onLeagueTableClick = { navController.navigate(Screen.LeagueTable.createRoute(it)) },
                 onTransfersClick = { navController.navigate(Screen.Transfers.createRoute(it)) },
                 onStatisticsClick = { navController.navigate(Screen.Statistics.createRoute(it)) },
-                onNextMatchClick = { navController.navigate(Screen.NextMatch.createRoute(it)) }
+                onNextMatchClick = { navController.navigate(Screen.NextMatch.createRoute(it)) },
+                onLeagueTableDetailClick = { leagueId ->
+                    navController.navigate(Screen.LeagueTableDetail.createRoute(leagueId))
+                }
             )
         }
 
@@ -202,7 +214,10 @@ fun NavGraph(navController: NavHostController) {
             val teamId = backStackEntry.arguments?.getLong("teamId") ?: return@composable
             LeagueTableScreen(
                 teamId = teamId,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onLeagueClick = { leagueId ->
+                    navController.navigate(Screen.LeagueTableDetail.createRoute(leagueId))
+                }
             )
         }
 
@@ -239,8 +254,12 @@ fun NavGraph(navController: NavHostController) {
                 onFixturesClick = { id -> 
                     navController.navigate(Screen.FixturesScreen.createRoute(id))
                 },
-                onOpponentClick = { /* ... */ },
-                onPlayMatchClick = { /* ... */ }
+                onOpponentClick = { opponentId ->
+                    navController.navigate(Screen.Opponent.createRoute(teamId, opponentId))
+                },
+                onPlayMatchClick = { fixtureId ->
+                    navController.navigate(Screen.PlayMatch.createRoute(fixtureId))
+                }
             )
         }
 
@@ -266,6 +285,55 @@ fun NavGraph(navController: NavHostController) {
             LeagueFixturesScreen(
                 leagueId = leagueId,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.LeagueTableDetail.route,
+            arguments = listOf(navArgument("leagueId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val leagueId = backStackEntry.arguments?.getLong("leagueId") ?: return@composable
+            LeagueTableDetailScreen(
+                leagueId = leagueId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.Opponent.route,
+            arguments = listOf(
+                navArgument("teamId") { type = NavType.LongType },
+                navArgument("opponentId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val teamId = backStackEntry.arguments?.getLong("teamId") ?: return@composable
+            val opponentId = backStackEntry.arguments?.getLong("opponentId") ?: return@composable
+            OpponentScreen(
+                teamId = teamId,
+                opponentId = opponentId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.PlayMatch.route,
+            arguments = listOf(navArgument("fixtureId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val fixtureId = backStackEntry.arguments?.getLong("fixtureId") ?: return@composable
+            PlayMatchScreen(
+                fixtureId = fixtureId,
+                onBackClick = { navController.popBackStack() },
+                onMatchEnd = {
+                    val teamId = navController.previousBackStackEntry
+                        ?.arguments?.getLong("teamId") 
+                        ?: return@PlayMatchScreen
+
+                    navController.navigate(Screen.Dashboard.createRoute(teamId)) {
+                        popUpTo(Screen.Dashboard.route) {
+                            inclusive = true
+                        }
+                    }
+                }
             )
         }
     }

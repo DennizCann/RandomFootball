@@ -1,6 +1,7 @@
 package com.denizcan.randomfootball.ui.screens
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -28,6 +29,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.denizcan.randomfootball.R
+import com.denizcan.randomfootball.data.model.LeagueTable
 import com.denizcan.randomfootball.util.FixtureGenerator
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -608,6 +610,33 @@ fun NewGameScreen(
         "Rangel", "Peixoto", "Canedo", "Cavalcanti", "Fonseca"
     )
 
+    // Önceden tanımlanmış takım renkleri
+    val teamColors = listOf(
+        "#FF0000", // Kırmızı
+        "#0000FF", // Mavi
+        "#008000", // Yeşil
+        "#800080", // Mor
+        "#FFA500", // Turuncu
+        "#FFD700", // Altın
+        "#4B0082", // Indigo
+        "#800000", // Bordo
+        "#000080", // Lacivert
+        "#008080", // Turkuaz
+        "#FF1493", // Pembe
+        "#4682B4", // Çelik Mavisi
+        "#8B4513", // Kahverengi
+        "#556B2F", // Koyu Yeşil
+        "#483D8B", // Koyu Slate Mavi
+        "#B8860B"  // Koyu Altın
+    )
+
+    // İki farklı renk seçen fonksiyon
+    fun generateTeamColors(): Pair<String, String> {
+        val firstColor = teamColors.random()
+        val secondColor = teamColors.filter { it != firstColor }.random()
+        return Pair(firstColor, secondColor)
+    }
+
     // namesByNationality değişkeni burada tanımlanıyor
     val namesByNationality = mapOf(
         "England" to Pair(englandMaleNames, englandSurnames),
@@ -646,17 +675,13 @@ fun NewGameScreen(
             "#800000", // Bordo
             "#008000", // Koyu Yeşil
             "#000080", // Lacivert
-            "#808000", // Zeytin Yeşili
-            "#800080", // Mor
             "#008080", // Turkuaz
-            "#FFA500", // Turuncu
-            "#A52A2A", // Kahverengi
-            "#DEB887", // Açık Kahve
-            "#5F9EA0", // Deniz Mavisi
-            "#D2691E", // Çikolata
-            "#556B2F", // Koyu Zeytin Yeşili
-            "#8B0000", // Koyu Kırmızı
-            "#E9967A"  // Somon
+            "#FF1493", // Pembe
+            "#4682B4", // Çelik Mavisi
+            "#8B4513", // Kahverengi
+            "#556B2F", // Koyu Yeşil
+            "#483D8B", // Koyu Slate Mavi
+            "#B8860B"  // Koyu Altın
         )
         return colors.random()
     }
@@ -777,6 +802,7 @@ fun NewGameScreen(
         val managerDao = database.managerDao()
         val playerDao = database.playerDao()
         val fixtureDao = database.fixtureDao()
+        val leagueTableDao = database.leagueTableDao()
 
         // Oyunu kaydet
         val gameId = gameDao.insertGame(
@@ -792,13 +818,13 @@ fun NewGameScreen(
 
         // Her lig için
         selectedLeagueNames.forEach { leagueName ->
-            // Ligi kaydet
             val leagueId = leagueDao.insertLeague(
                 League(
                     name = leagueName,
                     gameId = gameId
                 )
             )
+            Log.d("NewGameScreen", "Created league with ID: $leagueId")
 
             // Bu ligdeki takımlar için kullanılan isimleri takip et
             val usedTeamNames = mutableSetOf<String>()
@@ -812,18 +838,42 @@ fun NewGameScreen(
                 } while (teamName in usedTeamNames)
                 usedTeamNames.add(teamName)
 
+                // İki farklı renk seç
+                val (primaryColor, secondaryColor) = generateTeamColors()
+
                 Team(
                     name = teamName,
                     leagueId = leagueId,
-                    primaryColor = generateRandomColor(),
-                    secondaryColor = generateRandomColor()
+                    primaryColor = primaryColor,
+                    secondaryColor = secondaryColor
                 )
-            }
+            }.sortedBy { it.name }  // Takımları alfabetik sırala
 
             // Takımları veritabanına kaydet ve ID'lerini al
             val teamIds = teams.map { team ->
                 teamDao.insertTeam(team)
             }
+
+            // Her takım için lig tablosu kaydı oluştur
+            val leagueTables = teamIds.map { teamId ->
+                LeagueTable(
+                    leagueId = leagueId,
+                    teamId = teamId,
+                    position = 0,      // Başlangıçta 0
+                    points = 0,        // Başlangıçta 0
+                    played = 0,        // Başlangıçta 0
+                    won = 0,           // Başlangıçta 0
+                    drawn = 0,         // Başlangıçta 0
+                    lost = 0,          // Başlangıçta 0
+                    goalsFor = 0,      // Başlangıçta 0
+                    goalsAgainst = 0,  // Başlangıçta 0
+                    goalDifference = 0 // Başlangıçta 0
+                )
+            }
+            leagueTableDao.insertLeagueTables(leagueTables)
+
+            // Sıralamaları güncelle
+            leagueTableDao.updatePositions(leagueId)
 
             // Lig fikstürünü oluştur
             val fixtureTeams = teams.mapIndexed { index, team ->
@@ -835,6 +885,14 @@ fun NewGameScreen(
                 leagueId = leagueId,
                 gameId = gameId
             )
+
+            Log.d("NewGameScreen", """
+                Generated Fixtures:
+                League ID: $leagueId
+                Game ID: $gameId
+                Fixture Count: ${fixtures.size}
+                Fixtures: $fixtures
+            """.trimIndent())
 
             // Fikstürü veritabanına kaydet
             fixtureDao.insertFixtures(fixtures)

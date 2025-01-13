@@ -1,5 +1,6 @@
 package com.denizcan.randomfootball.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,13 +20,14 @@ import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.ui.components.TopBar
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FixturesScreen(
     teamId: Long,
     onBackClick: () -> Unit,
-    onLeagueClick: (Long) -> Unit = {} // Lig seçildiğinde çağrılacak
+    onLeagueClick: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
@@ -34,6 +36,8 @@ fun FixturesScreen(
     
     // Önce takımın lig ID'sini alalım
     val team = teamDao.getTeamById(teamId).collectAsState(initial = null)
+    
+    // Takımın ligini alalım
     val league = remember(team.value?.leagueId) {
         team.value?.let { 
             leagueDao.getLeagueById(it.leagueId)
@@ -46,6 +50,13 @@ fun FixturesScreen(
             leagueDao.getLeaguesByGameId(it.gameId)
         } ?: flowOf(emptyList())
     }.collectAsState(initial = emptyList())
+
+    // Debug için log ekleyelim
+    LaunchedEffect(team.value, league.value, leagues.value) {
+        Log.d("FixturesScreen", "Team: ${team.value}")
+        Log.d("FixturesScreen", "League: ${league.value}")
+        Log.d("FixturesScreen", "Leagues count: ${leagues.value.size}")
+    }
 
     Scaffold(
         topBar = {
@@ -71,7 +82,10 @@ fun FixturesScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onLeagueClick(league.leagueId) },
+                            .clickable { 
+                                Log.d("FixturesScreen", "Clicked league with ID: ${league.leagueId}")
+                                onLeagueClick(league.leagueId) 
+                            },
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
                         Row(

@@ -10,8 +10,16 @@ import com.denizcan.randomfootball.data.dao.*
 import com.denizcan.randomfootball.data.model.*
 
 @Database(
-    entities = [Game::class, League::class, Team::class, Manager::class, Player::class, Fixture::class],
-    version = 4,
+    entities = [
+        Game::class, 
+        League::class, 
+        Team::class, 
+        Manager::class, 
+        Player::class, 
+        Fixture::class,
+        LeagueTable::class
+    ],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -22,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun managerDao(): ManagerDao
     abstract fun playerDao(): PlayerDao
     abstract fun fixtureDao(): FixtureDao
+    abstract fun leagueTableDao(): LeagueTableDao
 
     companion object {
         @Volatile

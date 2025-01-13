@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.ui.components.TopBar
 import kotlinx.coroutines.flow.flowOf
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,39 +32,33 @@ fun LeagueFixturesScreen(
     val leagueDao = remember { database.leagueDao() }
 
     // Lig bilgisini al
-    val league = remember(leagueId) {
-        leagueDao.getLeagueById(leagueId)
-    }.collectAsState(initial = null)
+    val league = leagueDao.getLeagueById(leagueId).collectAsState(initial = null)
 
-    // Fikstürü al
-    val fixtures = remember(leagueId) {
-        league.value?.let {
-            fixtureDao.getFixturesByLeague(it.gameId, leagueId)
+    // Takımları al
+    val teams = teamDao.getTeamsByLeagueId(leagueId).collectAsState(initial = emptyList())
+    val teamNames = teams.value.associate { it.teamId to it.name }
+
+    // Fikstürleri al - gameId'yi league'den alıyoruz
+    val fixtures = remember(league.value?.gameId) {
+        league.value?.let { currentLeague ->
+            fixtureDao.getFixturesByLeague(currentLeague.gameId, leagueId)
         } ?: flowOf(emptyList())
     }.collectAsState(initial = emptyList())
 
-    // Takım isimlerini al
-    val teams = remember(leagueId) {
-        teamDao.getTeamsByLeagueId(leagueId)
-    }.collectAsState(initial = emptyList())
+    // Hafta gruplarını oluştur
+    val weekGroups = fixtures.value.groupBy { it.week }.toSortedMap()
 
-    val teamNames = teams.value.associate { it.teamId to it.name }
-
-    // Verileri kontrol etmek için log ekleyelim
-    LaunchedEffect(leagueId) {
-        println("LeagueID: $leagueId")
-        println("League: ${league.value}")
-        
-        league.value?.let { currentLeague ->
-            println("GameID: ${currentLeague.gameId}")
-            val fixtureCount = fixtureDao.getFixtureCountForLeague(leagueId)
-            println("Fixture Count in DB: $fixtureCount")
-        }
-        
-        println("Teams Count: ${teams.value.size}")
-        println("Teams: ${teams.value.map { it.name }}")
-        println("Fixtures Count: ${fixtures.value.size}")
-        println("Fixtures: ${fixtures.value}")
+    // Debug logları
+    LaunchedEffect(leagueId, league.value, teams.value, fixtures.value) {
+        Log.d("LeagueFixtures", """
+            LeagueID: $leagueId
+            League: ${league.value}
+            GameID: ${league.value?.gameId}
+            Teams Count: ${teams.value.size}
+            Teams: ${teams.value.map { it.name }}
+            Fixtures Count: ${fixtures.value.size}
+            Fixtures: ${fixtures.value}
+        """.trimIndent())
     }
 
     Scaffold(
@@ -86,14 +81,10 @@ fun LeagueFixturesScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                var currentWeek = -1
-
-                items(fixtures.value) { fixture ->
-                    if (currentWeek != fixture.week) {
-                        currentWeek = fixture.week
-                        // Hafta başlığı
+                weekGroups.forEach { (week, weekFixtures) ->
+                    item(key = "week_$week") {
                         Text(
-                            text = "Week ${fixture.week}",
+                            text = "Week $week",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
@@ -101,48 +92,53 @@ fun LeagueFixturesScreen(
                         )
                     }
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    items(
+                        items = weekFixtures,
+                        key = { it.fixtureId }  // Benzersiz key kullan
+                    ) { fixture ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
                         ) {
-                            // Ev sahibi
-                            Text(
-                                text = teamNames[fixture.homeTeamId] ?: "",
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.End
-                            )
-                            
-                            // Skor
                             Row(
                                 modifier = Modifier
-                                    .padding(horizontal = 16.dp)
-                                    .width(60.dp),
-                                horizontalArrangement = Arrangement.Center
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Ev sahibi
                                 Text(
-                                    text = if (fixture.isPlayed) fixture.homeScore.toString() else "-",
-                                    fontWeight = FontWeight.Bold
+                                    text = teamNames[fixture.homeTeamId] ?: "",
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End
                                 )
-                                Text(text = " - ")
+                                
+                                // Skor
+                                Row(
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .width(60.dp),
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = if (fixture.isPlayed) fixture.homeScore.toString() else "-",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(text = " - ")
+                                    Text(
+                                        text = if (fixture.isPlayed) fixture.awayScore.toString() else "-",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                // Deplasman
                                 Text(
-                                    text = if (fixture.isPlayed) fixture.awayScore.toString() else "-",
-                                    fontWeight = FontWeight.Bold
+                                    text = teamNames[fixture.awayTeamId] ?: "",
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.Start
                                 )
                             }
-                            
-                            // Deplasman
-                            Text(
-                                text = teamNames[fixture.awayTeamId] ?: "",
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Start
-                            )
                         }
                     }
                 }

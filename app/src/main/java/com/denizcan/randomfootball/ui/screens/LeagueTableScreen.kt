@@ -20,12 +20,14 @@ import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.ui.components.TopBar
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.flow.flowOf
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeagueTableScreen(
     teamId: Long,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onLeagueClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
@@ -68,7 +70,9 @@ fun LeagueTableScreen(
             ) {
                 items(leagues.value) { league ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLeagueClick(league.leagueId) },
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
                         Row(
