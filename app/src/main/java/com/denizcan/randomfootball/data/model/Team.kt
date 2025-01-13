@@ -11,16 +11,15 @@ import androidx.room.PrimaryKey
         ForeignKey(
             entity = League::class,
             parentColumns = ["leagueId"],
-            childColumns = ["leagueId"],
-            onDelete = ForeignKey.CASCADE
+            childColumns = ["leagueId"]
         )
-    ],
-    indices = [Index(value = ["leagueId"])]
+    ]
 )
 data class Team(
-    @PrimaryKey(autoGenerate = true) val teamId: Long = 0, // Primary key
-    val leagueId: Long, // Foreign key
+    @PrimaryKey(autoGenerate = true)
+    val teamId: Long = 0,
     val name: String,
+    val leagueId: Long,
     val primaryColor: String,
     val secondaryColor: String
 )

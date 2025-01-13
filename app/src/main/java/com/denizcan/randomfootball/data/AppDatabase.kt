@@ -9,14 +9,19 @@ import com.denizcan.randomfootball.data.converter.Converters
 import com.denizcan.randomfootball.data.dao.*
 import com.denizcan.randomfootball.data.model.*
 
-@Database(entities = [Game::class, League::class, Team::class, Player::class, Manager::class], version = 8)
+@Database(
+    entities = [Game::class, League::class, Team::class, Manager::class, Player::class, Fixture::class],
+    version = 4,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao
     abstract fun leagueDao(): LeagueDao
     abstract fun teamDao(): TeamDao
-    abstract fun playerDao(): PlayerDao
     abstract fun managerDao(): ManagerDao
+    abstract fun playerDao(): PlayerDao
+    abstract fun fixtureDao(): FixtureDao
 
     companion object {
         @Volatile
@@ -29,8 +34,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "football_database"
                 )
-                    .fallbackToDestructiveMigration()
-                    .build()
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

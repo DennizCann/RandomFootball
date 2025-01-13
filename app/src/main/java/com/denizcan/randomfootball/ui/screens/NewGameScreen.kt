@@ -1,5 +1,6 @@
 package com.denizcan.randomfootball.ui.screens
 
+import android.content.Context
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,12 +28,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.denizcan.randomfootball.R
+import com.denizcan.randomfootball.util.FixtureGenerator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewGameScreen(
     onBackClick: () -> Unit,
-    onGameCreated: (Long) -> Unit
+    onGameSaved: (Long) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -40,11 +42,6 @@ fun NewGameScreen(
     var selectedLeagueCount by remember { mutableStateOf(4f) }
     var selectedTeamCount by remember { mutableStateOf(10f) }
     var isLoading by remember { mutableStateOf(false) }
-
-    val database = remember { AppDatabase.getDatabase(context) }
-    val gameDao = remember { database.gameDao() }
-    val leagueDao = remember { database.leagueDao() }
-    val teamDao = remember { database.teamDao() }
 
     val footballNames = object {
         val leagues = listOf(
@@ -225,7 +222,6 @@ fun NewGameScreen(
         "Kevin", "Robin", "Cyril", "Tristan", "Loïc",
         "Sylvain", "Gilbert", "Manuel", "Gaël", "Bastien"
     )
-
 
     val franceSurnames = listOf(
         "Martin", "Bernard", "Thomas", "Petit", "Robert",
@@ -638,95 +634,233 @@ fun NewGameScreen(
         "5-4-1"
     )
 
+    // Renk üretme fonksiyonu
+    fun generateRandomColor(): String {
+        val colors = listOf(
+            "#FF0000", // Kırmızı
+            "#00FF00", // Yeşil
+            "#0000FF", // Mavi
+            "#FFFF00", // Sarı
+            "#FF00FF", // Magenta
+            "#00FFFF", // Cyan
+            "#800000", // Bordo
+            "#008000", // Koyu Yeşil
+            "#000080", // Lacivert
+            "#808000", // Zeytin Yeşili
+            "#800080", // Mor
+            "#008080", // Turkuaz
+            "#FFA500", // Turuncu
+            "#A52A2A", // Kahverengi
+            "#DEB887", // Açık Kahve
+            "#5F9EA0", // Deniz Mavisi
+            "#D2691E", // Çikolata
+            "#556B2F", // Koyu Zeytin Yeşili
+            "#8B0000", // Koyu Kırmızı
+            "#E9967A"  // Somon
+        )
+        return colors.random()
+    }
 
-    suspend fun createManagerForTeam(
-        teamId: Long,
-        managerDao: ManagerDao,
-        namesByNationality: Map<String, Pair<List<String>, List<String>>>
-    ): Manager {
+    fun generateRandomName(): Pair<String, String> {  // İsim ve milliyet döndürür
         // Rastgele Milliyet Belirleme
         val selectedNationality = topFootballCountries.random()
 
         // Milliyete Göre İsim ve Soyisim Listelerini Al
         val (nameList, surnameList) = namesByNationality[selectedNationality]!!
+
+        // Rastgele İsim ve Soyisim Seç
         val firstName = nameList.random()
         val lastName = surnameList.random()
-        val managerName = "$firstName $lastName"
 
-        // Rastgele Diziliş Seçimi
-        val selectedFormation = formations.random()
-
-        // Menajer Nesnesi Oluşturma
-        val manager = Manager(
-            teamId = teamId,
-            name = managerName,
-            nationality = selectedNationality,
-            formation = selectedFormation
-        )
-
-        // Veritabanına Ekleme
-        managerDao.insertManager(manager)
-
-        // Oluşturulan Menajeri Döndür
-        return manager
+        return Pair("$firstName $lastName", selectedNationality)
     }
 
-
-    suspend fun createPlayersForTeam(
-        teamId: Long,
-        managerFormation: String,
-        playerDao: PlayerDao,
-        namesByNationality: Map<String, Pair<List<String>, List<String>>>
-    ) {
-        // Dizilişi Parse Etme
-        val formationParts = managerFormation.split("-").map { it.toInt() }
-        val defendersCount = formationParts[0]
-        val midfieldersCount = formationParts[1]
-        val forwardsCount = formationParts[2]
-
-        // Kullanılmış Forma Numaralarını Saklama
+    fun generatePlayers(teamId: Long, formation: String): List<Player> {
+        val players = mutableListOf<Player>()
         val usedShirtNumbers = mutableSetOf<Int>()
 
-        // Pozisyonları Hazırlama
-        val positions = mutableListOf("Goalkeeper") // İlk oyuncu kaleci
-        repeat(defendersCount) { positions.add("Defender") }
-        repeat(midfieldersCount) { positions.add("Midfielder") }
-        repeat(forwardsCount) { positions.add("Forward") }
+        // Formasyonu parse et (örn: "4-3-3")
+        val formationParts = formation.split("-").map { it.toInt() }
+        val defenders = formationParts[0]
+        val midfielders = formationParts[1]
+        val forwards = formationParts[2]
 
-        // Oyuncuları Oluşturma
-        for (position in positions) {
-            // Rastgele Milliyet Belirleme
-            val selectedNationality = topFootballCountries.random()
+        // Kaleci oluştur (her formasyonda 1 kaleci)
+        val (goalkeeperName, goalkeeperNationality) = generateRandomName()
+        var shirtNumber = (1..99).random()
+        usedShirtNumbers.add(shirtNumber)
 
-            // İsim ve Soyisim Listelerini Al
-            val (nameList, surnameList) = namesByNationality[selectedNationality]!!
-            val firstName = nameList.random()
-            val lastName = surnameList.random()
-            val playerName = "$firstName $lastName"
+        players.add(
+            Player(
+                teamId = teamId,
+                name = goalkeeperName,
+                nationality = goalkeeperNationality,
+                position = "Goalkeeper",
+                shirtNumber = shirtNumber,
+                skill = (60..90).random()
+            )
+        )
 
-            // Benzersiz Forma Numarası Belirleme
-            var shirtNumber: Int
+        // Defans oyuncuları
+        repeat(defenders) {
+            val (defenderName, defenderNationality) = generateRandomName()
             do {
                 shirtNumber = (1..99).random()
             } while (shirtNumber in usedShirtNumbers)
             usedShirtNumbers.add(shirtNumber)
 
-            // Rastgele Yetenek Seviyesi Belirleme
-            val skill = (60..90).random()
+            players.add(
+                Player(
+                    teamId = teamId,
+                    name = defenderName,
+                    nationality = defenderNationality,
+                    position = "Defender",
+                    shirtNumber = shirtNumber,
+                    skill = (60..90).random()
+                )
+            )
+        }
 
-            // Oyuncu Nesnesi Oluşturma
-            val player = Player(
-                teamId = teamId,
-                name = playerName,
-                shirtNumber = shirtNumber,
-                skill = skill,
-                position = position,
-                nationality = selectedNationality
+        // Orta saha oyuncuları
+        repeat(midfielders) {
+            val (midfielderName, midfielderNationality) = generateRandomName()
+            do {
+                shirtNumber = (1..99).random()
+            } while (shirtNumber in usedShirtNumbers)
+            usedShirtNumbers.add(shirtNumber)
+
+            players.add(
+                Player(
+                    teamId = teamId,
+                    name = midfielderName,
+                    nationality = midfielderNationality,
+                    position = "Midfielder",
+                    shirtNumber = shirtNumber,
+                    skill = (60..90).random()
+                )
+            )
+        }
+
+        // Forvet oyuncuları
+        repeat(forwards) {
+            val (forwardName, forwardNationality) = generateRandomName()
+            do {
+                shirtNumber = (1..99).random()
+            } while (shirtNumber in usedShirtNumbers)
+            usedShirtNumbers.add(shirtNumber)
+
+            players.add(
+                Player(
+                    teamId = teamId,
+                    name = forwardName,
+                    nationality = forwardNationality,
+                    position = "Forward",
+                    shirtNumber = shirtNumber,
+                    skill = (60..90).random()
+                )
+            )
+        }
+
+        return players
+    }
+
+    suspend fun saveGame(
+        context: Context,
+        gameName: String,
+        teamCount: Int,
+        onGameSaved: (Long) -> Unit
+    ) {
+        val database = AppDatabase.getDatabase(context)
+        val gameDao = database.gameDao()
+        val leagueDao = database.leagueDao()
+        val teamDao = database.teamDao()
+        val managerDao = database.managerDao()
+        val playerDao = database.playerDao()
+        val fixtureDao = database.fixtureDao()
+
+        // Oyunu kaydet
+        val gameId = gameDao.insertGame(
+            Game(
+                name = gameName,
+                creationDate = Date()
+            )
+        )
+
+        // Seçilen ligleri rastgele oluştur
+        val selectedLeagueNames = footballNames.leagues.shuffled()
+            .take(selectedLeagueCount.toInt())
+
+        // Her lig için
+        selectedLeagueNames.forEach { leagueName ->
+            // Ligi kaydet
+            val leagueId = leagueDao.insertLeague(
+                League(
+                    name = leagueName,
+                    gameId = gameId
+                )
             )
 
-            // Oyuncuyu Veritabanına Ekleme
-            playerDao.insertPlayer(player)
+            // Bu ligdeki takımlar için kullanılan isimleri takip et
+            val usedTeamNames = mutableSetOf<String>()
+
+            // Takımları oluştur ve kaydet
+            val teams = (1..teamCount).map {
+                // Benzersiz bir takım ismi seç
+                var teamName: String
+                do {
+                    teamName = footballNames.teams.random()
+                } while (teamName in usedTeamNames)
+                usedTeamNames.add(teamName)
+
+                Team(
+                    name = teamName,
+                    leagueId = leagueId,
+                    primaryColor = generateRandomColor(),
+                    secondaryColor = generateRandomColor()
+                )
+            }
+
+            // Takımları veritabanına kaydet ve ID'lerini al
+            val teamIds = teams.map { team ->
+                teamDao.insertTeam(team)
+            }
+
+            // Lig fikstürünü oluştur
+            val fixtureTeams = teams.mapIndexed { index, team ->
+                team.copy(teamId = teamIds[index])
+            }
+
+            val fixtures = FixtureGenerator.generateFixtures(
+                teams = fixtureTeams,
+                leagueId = leagueId,
+                gameId = gameId
+            )
+
+            // Fikstürü veritabanına kaydet
+            fixtureDao.insertFixtures(fixtures)
+
+            // Her takım için menajer ve oyuncuları oluştur
+            teamIds.forEach { teamId ->
+                // Önce menajer oluştur
+                val (managerName, managerNationality) = generateRandomName()
+                val formation = formations.random()  // Formasyonu burada seç
+                val manager = Manager(
+                    name = managerName,
+                    teamId = teamId,
+                    formation = formation,
+                    nationality = managerNationality
+                )
+                managerDao.insertManager(manager)
+
+                // Oyuncuları menajerin formasyonuna göre oluştur
+                val players = generatePlayers(teamId, formation)  // Seçilen formasyonu kullan
+                players.forEach { player ->
+                    playerDao.insertPlayer(player)
+                }
+            }
         }
+
+        onGameSaved(gameId)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -816,7 +950,7 @@ fun NewGameScreen(
                             value = selectedTeamCount,
                             onValueChange = { selectedTeamCount = it },
                             valueRange = 10f..20f,
-                            steps = 4,
+                            steps = 10,
                             colors = SliderDefaults.colors(
                                 thumbColor = Color.White,
                                 activeTrackColor = Color.White,
@@ -831,76 +965,17 @@ fun NewGameScreen(
                 Button(
                     onClick = {
                         if (gameName.isNotBlank()) {
-                            isLoading = true // Yükleme başladı
-                            val managerDao = database.managerDao()
-                            val playerDao = database.playerDao()
-                            
+                            isLoading = true
                             scope.launch {
                                 try {
-                                    // Yeni bir oyun oluştur
-                                    val newGame = Game(
-                                        name = gameName,
-                                        creationDate = Date()
+                                    saveGame(
+                                        context = context,
+                                        gameName = gameName,
+                                        teamCount = selectedTeamCount.toInt(),
+                                        onGameSaved = onGameSaved
                                     )
-                                    val gameId = gameDao.insertGame(newGame)
-
-                                    // Seçilen ligleri rastgele oluştur
-                                    val selectedLeagueNames = footballNames.leagues.shuffled()
-                                        .take(selectedLeagueCount.toInt())
-
-                                    selectedLeagueNames.forEach { leagueName ->
-                                        val league = League(
-                                            gameId = gameId,
-                                            name = leagueName
-                                        )
-                                        val leagueId = leagueDao.insertLeague(league)
-
-                                        // Bu ligdeki takımlar için kullanılan isimleri takip et
-                                        val usedTeamNames = mutableSetOf<String>()
-                                        
-                                        // Her lig için rastgele takımlar oluştur
-                                        for (j in 1..selectedTeamCount.toInt()) {
-                                            // Benzersiz bir takım ismi seç
-                                            var teamName: String
-                                            do {
-                                                teamName = footballNames.teams.random()
-                                            } while (teamName in usedTeamNames)
-                                            usedTeamNames.add(teamName)
-
-                                            val availableColors = footballNames.colors.toMutableList()
-                                            val primaryColor = availableColors.random()
-                                            availableColors.remove(primaryColor)
-                                            val secondaryColor = availableColors.random()
-
-                                            val team = Team(
-                                                leagueId = leagueId,
-                                                name = teamName,
-                                                primaryColor = primaryColor.first,
-                                                secondaryColor = secondaryColor.first
-                                            )
-                                            val teamId = teamDao.insertTeam(team)
-
-                                            // Takım için bir menajer oluştur
-                                            val manager = createManagerForTeam(
-                                                teamId = teamId,
-                                                managerDao = managerDao,
-                                                namesByNationality = namesByNationality
-                                            )
-
-                                            // Menajerin dizilişine göre oyuncuları oluştur
-                                            createPlayersForTeam(
-                                                teamId = teamId,
-                                                managerFormation = manager.formation,
-                                                playerDao = playerDao,
-                                                namesByNationality = namesByNationality
-                                            )
-                                        }
-                                    }
-
-                                    // Oyun tamamlandı
-                                    onGameCreated(gameId)
                                 } finally {
-                                    isLoading = false // Yükleme bitti (hata olsa da olmasa da)
+                                    isLoading = false
                                 }
                             }
                         }
@@ -912,7 +987,7 @@ fun NewGameScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = gameName.isNotBlank() && !isLoading // Loading sırasında butonu deaktif et
+                    enabled = gameName.isNotBlank() && !isLoading
                 ) {
                     Text(
                         text = "Generate",
@@ -964,7 +1039,7 @@ fun NewGameScreen(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Text(
                             text = "Please wait while we generate your football universe",
                             color = Color.White.copy(alpha = 0.8f),

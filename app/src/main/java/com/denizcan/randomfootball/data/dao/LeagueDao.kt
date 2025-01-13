@@ -20,4 +20,10 @@ interface LeagueDao {
 
     @Query("DELETE FROM leagues WHERE gameId = :gameId")
     suspend fun deleteLeaguesByGameId(gameId: Long)
+
+    @Query("SELECT * FROM leagues")
+    fun getAllLeagues(): Flow<List<League>>
+
+    @Query("SELECT * FROM leagues WHERE leagueId = :leagueId")
+    fun getLeagueById(leagueId: Long): Flow<League?>
 } 

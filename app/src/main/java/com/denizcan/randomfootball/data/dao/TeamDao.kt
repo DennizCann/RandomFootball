@@ -30,4 +30,10 @@ interface TeamDao {
         WHERE l.gameId = :gameId
     """)
     suspend fun getTeamsByGameId(gameId: Long): List<Team>
+
+    @Query("SELECT * FROM teams")
+    fun getAllTeams(): Flow<List<Team>>
+
+    @Query("SELECT * FROM teams WHERE teamId = :teamId")
+    suspend fun getTeamByIdSync(teamId: Long): Team
 } 
