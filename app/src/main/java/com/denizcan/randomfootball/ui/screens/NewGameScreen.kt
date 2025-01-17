@@ -15,8 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
-import com.denizcan.randomfootball.data.dao.ManagerDao
-import com.denizcan.randomfootball.data.dao.PlayerDao
 import com.denizcan.randomfootball.data.model.Game
 import com.denizcan.randomfootball.data.model.League
 import com.denizcan.randomfootball.data.model.Manager
