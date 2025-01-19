@@ -45,9 +45,7 @@ interface FixtureDao {
 
     @Query("""
         SELECT * FROM fixtures 
-        WHERE leagueId = :leagueId 
-        AND week = :week 
-        AND isPlayed = 0
+        WHERE leagueId = :leagueId AND week = :week
     """)
-    suspend fun getFixturesByWeek(leagueId: Long, week: Int): List<Fixture>
+    fun getFixturesByWeek(leagueId: Long, week: Int): Flow<List<Fixture>>
 } 

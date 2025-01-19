@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.denizcan.randomfootball.data.model.Team
 import kotlinx.coroutines.flow.Flow
 
@@ -21,7 +22,12 @@ interface TeamDao {
     @Query("DELETE FROM teams WHERE leagueId = :leagueId")
     suspend fun deleteTeamsByLeagueId(leagueId: Long)
 
-    @Query("SELECT * FROM teams WHERE teamId = :teamId")
+    @Query("""
+        SELECT t.*, m.managerId 
+        FROM teams t 
+        LEFT JOIN managers m ON t.teamId = m.teamId 
+        WHERE t.teamId = :teamId
+    """)
     fun getTeamById(teamId: Long): Flow<Team?>
 
     @Query("""
@@ -36,4 +42,7 @@ interface TeamDao {
 
     @Query("SELECT * FROM teams WHERE teamId = :teamId")
     suspend fun getTeamByIdSync(teamId: Long): Team
+
+    @Update
+    suspend fun updateTeam(team: Team)
 } 

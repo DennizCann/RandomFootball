@@ -111,6 +111,7 @@ fun CreateManagerScreen(
                                 // Yeni menajer oluştur
                                 val newManager = Manager(
                                     teamId = teamId,
+                                    gameId = gameId,
                                     name = managerName,
                                     nationality = selectedNationality,
                                     formation = "4-4-2" // Varsayılan diziliş

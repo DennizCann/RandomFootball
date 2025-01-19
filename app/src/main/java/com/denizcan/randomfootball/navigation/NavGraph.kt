@@ -37,8 +37,8 @@ sealed class Screen(val route: String) {
     object Transfers : Screen("transfers/{teamId}") {
         fun createRoute(teamId: Long) = "transfers/$teamId"
     }
-    object Statistics : Screen("statistics/{teamId}") {
-        fun createRoute(teamId: Long) = "statistics/$teamId"
+    object Statistics : Screen("statistics/{gameId}") {
+        fun createRoute(gameId: Long) = "statistics/$gameId"
     }
     object NextMatch : Screen("next_match/{teamId}") {
         fun createRoute(teamId: Long) = "next_match/$teamId"
@@ -57,6 +57,12 @@ sealed class Screen(val route: String) {
     }
     object PlayMatch : Screen("play_match/{fixtureId}") {
         fun createRoute(fixtureId: Long) = "play_match/$fixtureId"
+    }
+    object TeamStatistics : Screen("team_statistics/{leagueId}/{gameId}") {
+        fun createRoute(leagueId: Long, gameId: Long) = "team_statistics/$leagueId/$gameId"
+    }
+    object PlayerStatistics : Screen("player_statistics/{teamId}/{gameId}") {
+        fun createRoute(teamId: Long, gameId: Long) = "player_statistics/$teamId/$gameId"
     }
 }
 
@@ -234,12 +240,34 @@ fun NavGraph(navController: NavHostController) {
 
         composable(
             route = Screen.Statistics.route,
-            arguments = listOf(navArgument("teamId") { type = NavType.LongType})
+            arguments = listOf(navArgument("gameId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val teamId = backStackEntry.arguments?.getLong("teamId") ?: return@composable
+            val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
             StatisticsScreen(
-                teamId = teamId,
-                onBackClick = { navController.popBackStack() }
+                gameId = gameId,
+                onBackClick = { navController.popBackStack() },
+                onLeagueClick = { leagueId ->
+                    navController.navigate(Screen.TeamStatistics.createRoute(leagueId, gameId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeamStatistics.route,
+            arguments = listOf(
+                navArgument("leagueId") { type = NavType.LongType },
+                navArgument("gameId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val leagueId = backStackEntry.arguments?.getLong("leagueId") ?: return@composable
+            val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
+            TeamStatisticsScreen(
+                leagueId = leagueId,
+                gameId = gameId,
+                onBackClick = { navController.popBackStack() },
+                onTeamClick = { teamId ->
+                    navController.navigate(Screen.PlayerStatistics.createRoute(teamId, gameId))
+                }
             )
         }
 
@@ -334,6 +362,22 @@ fun NavGraph(navController: NavHostController) {
                         }
                     }
                 }
+            )
+        }
+
+        composable(
+            route = Screen.PlayerStatistics.route,
+            arguments = listOf(
+                navArgument("teamId") { type = NavType.LongType },
+                navArgument("gameId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val teamId = backStackEntry.arguments?.getLong("teamId") ?: return@composable
+            val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
+            PlayerStatisticsScreen(
+                teamId = teamId,
+                gameId = gameId,
+                onBackClick = { navController.popBackStack() }
             )
         }
     }

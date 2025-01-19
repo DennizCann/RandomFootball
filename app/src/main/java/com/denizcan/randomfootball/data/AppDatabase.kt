@@ -17,9 +17,10 @@ import com.denizcan.randomfootball.data.model.*
         Manager::class,
         Player::class,
         Fixture::class,
-        LeagueTable::class
+        LeagueTable::class,
+        PlayerStats::class
     ],
-    version = 6,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -31,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playerDao(): PlayerDao
     abstract fun fixtureDao(): FixtureDao
     abstract fun leagueTableDao(): LeagueTableDao
+    abstract fun playerStatsDao(): PlayerStatsDao
 
     companion object {
         @Volatile

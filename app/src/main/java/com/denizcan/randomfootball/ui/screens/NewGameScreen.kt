@@ -31,6 +31,7 @@ import androidx.compose.ui.res.painterResource
 import com.denizcan.randomfootball.R
 import com.denizcan.randomfootball.data.model.LeagueTable
 import com.denizcan.randomfootball.util.FixtureGenerator
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,35 +108,6 @@ fun NewGameScreen(
             "Division", "Armada", "Vanguard", "Frontline", "Fortress"
         )
 
-        val colors = listOf(
-            // Ana Renkler
-            "#FF0000" to "Kırmızı",
-            "#0000FF" to "Mavi",
-            "#000000" to "Siyah",
-            "#FFFFFF" to "Beyaz",
-            "#FFFF00" to "Sarı",
-            "#008000" to "Yeşil",
-
-            // Koyu Tonlar
-            "#8B0000" to "Koyu Kırmızı",
-            "#000080" to "Lacivert",
-            "#800080" to "Mor",
-            "#A0522D" to "Kahverengi",
-
-            // Açık Tonlar
-            "#FF69B4" to "Pembe",
-            "#87CEEB" to "Açık Mavi",
-            "#98FB98" to "Açık Yeşil",
-
-            // Metalik Tonlar
-            "#C0C0C0" to "Gümüş",
-            "#FFD700" to "Altın",
-
-            // Ara Renkler
-            "#FFA500" to "Turuncu",
-            "#40E0D0" to "Turkuaz",
-            "#708090" to "Arduvaz Grisi"
-        )
     }
 
     val topFootballCountries = listOf(
@@ -151,12 +123,6 @@ fun NewGameScreen(
         "Turkey"         // Türk futbolunu temsilen
     )
 
-    val positions = listOf(
-        "Goalkeeper",  // Kaleci
-        "Defender",    // Defans oyuncusu
-        "Midfielder",  // Orta saha oyuncusu
-        "Forward"      // Forvet
-    )
 
     val englandMaleNames = listOf(
         "Oliver", "George", "Harry", "Jack", "Noah",
@@ -905,7 +871,7 @@ fun NewGameScreen(
         val fixtureDao = database.fixtureDao()
         val leagueTableDao = database.leagueTableDao()
 
-        // Oyunu kaydet
+        // 1. Oyunu oluştur
         val gameId = gameDao.insertGame(
             Game(
                 name = gameName,
@@ -913,12 +879,13 @@ fun NewGameScreen(
             )
         )
 
-        // Seçilen ligleri rastgele oluştur
+        // 2. Ligleri seç ve oluştur
         val selectedLeagueNames = footballNames.leagues.shuffled()
             .take(selectedLeagueCount.toInt())
 
-        // Her lig için
+        // Her lig için işlemler
         selectedLeagueNames.forEach { leagueName ->
+            // 3. Ligi oluştur
             val leagueId = leagueDao.insertLeague(
                 League(
                     name = leagueName,
@@ -927,62 +894,87 @@ fun NewGameScreen(
             )
             Log.d("NewGameScreen", "Created league with ID: $leagueId")
 
-            // Bu ligdeki takımlar için kullanılan isimleri takip et
+            // Takım isimlerini takip et
             val usedTeamNames = mutableSetOf<String>()
+            val usedManagerNames = mutableSetOf<String>()
 
-            // Takımları oluştur ve kaydet
-            val teams = (1..teamCount).map {
-                // Benzersiz bir takım ismi seç
+            // 4. Her takım için işlemler
+            val teamIds = (1..teamCount).map {
+                // 4.1 Takım ismini seç
                 var teamName: String
                 do {
                     teamName = footballNames.teams.random()
                 } while (teamName in usedTeamNames)
                 usedTeamNames.add(teamName)
 
-                // İki farklı renk seç
+                // 4.2 Takım renklerini seç
                 val (primaryColor, secondaryColor) = generateTeamColors()
 
-                Team(
+                // 4.3 Önce takımı oluştur (managerId olmadan)
+                val team = Team(
                     name = teamName,
                     leagueId = leagueId,
+                    managerId = 0, // Geçici olarak 0
                     primaryColor = primaryColor,
                     secondaryColor = secondaryColor
                 )
-            }.sortedBy { it.name }  // Takımları alfabetik sırala
+                val teamId = teamDao.insertTeam(team)
 
-            // Takımları veritabanına kaydet ve ID'lerini al
-            val teamIds = teams.map { team ->
-                teamDao.insertTeam(team)
-            }
+                // 4.4 Sonra menajeri oluştur
+                var (managerName, managerNationality) = generateRandomName(gameId)
+                while (managerName in usedManagerNames) {
+                    val newName = generateRandomName(gameId)
+                    managerName = newName.first
+                    managerNationality = newName.second
+                }
+                usedManagerNames.add(managerName)
 
-            // Her takım için lig tablosu kaydı oluştur
-            val leagueTables = teamIds.map { teamId ->
-                LeagueTable(
+                val formation = formations.random()
+                
+                val manager = Manager(
+                    name = managerName,
+                    teamId = teamId, // Artık gerçek teamId'yi kullanabiliriz
+                    gameId = gameId,
+                    nationality = managerNationality,
+                    formation = formation
+                )
+                val managerId = managerDao.insertManager(manager)
+
+                // 4.5 Takımın managerId'sini güncelle
+                teamDao.updateTeam(team.copy(managerId = managerId))
+
+                // 4.6 Menajerin formasyonuna göre oyuncuları oluştur
+                val players = generatePlayers(gameId, teamId, formation)
+                players.forEach { player ->
+                    playerDao.insertPlayer(player)
+                }
+
+                // 4.7 Lig tablosu kaydı oluştur
+                val leagueTable = LeagueTable(
                     leagueId = leagueId,
                     teamId = teamId,
-                    position = 0,      // Başlangıçta 0
-                    points = 0,        // Başlangıçta 0
-                    played = 0,        // Başlangıçta 0
-                    won = 0,           // Başlangıçta 0
-                    drawn = 0,         // Başlangıçta 0
-                    lost = 0,          // Başlangıçta 0
-                    goalsFor = 0,      // Başlangıçta 0
-                    goalsAgainst = 0,  // Başlangıçta 0
-                    goalDifference = 0 // Başlangıçta 0
+                    position = 0,
+                    points = 0,
+                    played = 0,
+                    won = 0,
+                    drawn = 0,
+                    lost = 0,
+                    goalsFor = 0,
+                    goalsAgainst = 0,
+                    goalDifference = 0
                 )
-            }
-            leagueTableDao.insertLeagueTables(leagueTables)
+                leagueTableDao.insertLeagueTable(leagueTable)
 
-            // Sıralamaları güncelle
-            leagueTableDao.updatePositions(leagueId)
+                teamId
+            }.sorted()
 
-            // Lig fikstürünü oluştur
-            val fixtureTeams = teams.mapIndexed { index, team ->
-                team.copy(teamId = teamIds[index])
-            }
+            // 5. Fikstür oluştur
+            val teams = teamIds.map { teamId ->
+                teamDao.getTeamById(teamId).first()
+            }.filterNotNull()  // null takımları filtrele
 
             val fixtures = FixtureGenerator.generateFixtures(
-                teams = fixtureTeams,
+                teams = teams,
                 leagueId = leagueId,
                 gameId = gameId
             )
@@ -995,26 +987,11 @@ fun NewGameScreen(
                 Fixtures: $fixtures
             """.trimIndent())
 
-            // Fikstürü veritabanına kaydet
+            // 6. Fikstürü kaydet
             fixtureDao.insertFixtures(fixtures)
 
-            // Her takım için menajer ve oyuncuları oluştur
-            teamIds.forEach { teamId ->
-                val (managerName, managerNationality) = generateRandomName(gameId)
-                val formation = formations.random()
-                val manager = Manager(
-                    name = managerName,
-                    teamId = teamId,
-                    formation = formation,
-                    nationality = managerNationality
-                )
-                managerDao.insertManager(manager)
-
-                val players = generatePlayers(gameId, teamId, formation)
-                players.forEach { player ->
-                    playerDao.insertPlayer(player)
-                }
-            }
+            // 7. Lig sıralamalarını güncelle
+            leagueTableDao.updatePositions(leagueId)
         }
 
         onGameSaved(gameId)

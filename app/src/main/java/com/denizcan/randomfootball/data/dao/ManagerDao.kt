@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ManagerDao {
 
+    @Query("SELECT * FROM managers WHERE managerId = :managerId")
+    fun getManagerById(managerId: Long): Flow<Manager?>
+
     @Insert
     suspend fun insertManager(manager: Manager): Long
 
@@ -23,7 +26,6 @@ interface ManagerDao {
     @Delete
     suspend fun deleteManager(manager: Manager)
 
-
     @Update
     suspend fun updateManager(manager: Manager)
 
@@ -32,5 +34,11 @@ interface ManagerDao {
 
     @Query("UPDATE managers SET formation = :formation WHERE managerId = :managerId")
     suspend fun updateManagerFormation(managerId: Long, formation: String)
+
+    @Query("SELECT * FROM managers WHERE gameId = :gameId")
+    fun getManagersByGameId(gameId: Long): Flow<List<Manager>>
+
+    @Query("UPDATE managers SET formation = :formation WHERE managerId = :managerId")
+    suspend fun updateFormation(managerId: Long, formation: String)
 
 }
