@@ -30,5 +30,7 @@ interface ManagerDao {
     @Query("SELECT * FROM managers WHERE teamId = :teamId LIMIT 1")
     suspend fun getManagerByTeamIdSync(teamId: Long): Manager?
 
+    @Query("UPDATE managers SET formation = :formation WHERE managerId = :managerId")
+    suspend fun updateManagerFormation(managerId: Long, formation: String)
 
 }

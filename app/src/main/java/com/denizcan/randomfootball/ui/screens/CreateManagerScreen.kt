@@ -34,7 +34,7 @@ fun CreateManagerScreen(
     var selectedNationality by remember { mutableStateOf("") }
     val nationalities = listOf(
         "Brazil", "Germany", "Italy", "Argentina", "France",
-        "England", "Spain", "Netherlands", "Portugal", "Belgium"
+        "England", "Spain", "Netherlands", "Portugal", "Turkey"
     )
 
     val scope = rememberCoroutineScope()

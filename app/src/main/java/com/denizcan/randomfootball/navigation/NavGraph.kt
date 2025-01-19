@@ -251,7 +251,7 @@ fun NavGraph(navController: NavHostController) {
             NextMatchScreen(
                 teamId = teamId,
                 onBackClick = { navController.popBackStack() },
-                onFixturesClick = { id -> 
+                onFixturesClick = { id ->
                     navController.navigate(Screen.FixturesScreen.createRoute(id))
                 },
                 onOpponentClick = { opponentId ->
@@ -325,7 +325,7 @@ fun NavGraph(navController: NavHostController) {
                 onBackClick = { navController.popBackStack() },
                 onMatchEnd = {
                     val teamId = navController.previousBackStackEntry
-                        ?.arguments?.getLong("teamId") 
+                        ?.arguments?.getLong("teamId")
                         ?: return@PlayMatchScreen
 
                     navController.navigate(Screen.Dashboard.createRoute(teamId)) {

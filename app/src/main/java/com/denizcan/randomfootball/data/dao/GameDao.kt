@@ -14,7 +14,7 @@ interface GameDao {
 
     @Query("SELECT * FROM games ORDER BY creationDate DESC")
     fun getAllGames(): Flow<List<Game>>
-    
+
     @Delete
     suspend fun deleteGame(game: Game)
 
@@ -23,4 +23,4 @@ interface GameDao {
 
     @Query("SELECT selectedTeamId FROM games WHERE gameId = :gameId")
     suspend fun getSelectedTeamId(gameId: Long): Long?
-} 
+}

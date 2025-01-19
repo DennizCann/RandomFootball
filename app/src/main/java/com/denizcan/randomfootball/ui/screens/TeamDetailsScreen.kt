@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.data.model.Player
 import com.denizcan.randomfootball.ui.components.TopBar
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,8 @@ fun TeamDetailsScreen(
     // Oyuncuları sırala
     val sortedPlayers = players.value.sortedWith(
         compareBy<Player> { positionOrderMap[it.position] ?: Int.MAX_VALUE }
-            .thenByDescending { it.skill }
+            .thenBy { it.shirtNumber } // Önce forma numarasına göre sırala
+            .thenByDescending { it.skill } // Sonra yeteneğe göre sırala
     )
 
     // Oyuncuları pozisyonlarına göre grupla
@@ -92,9 +94,9 @@ fun TeamDetailsScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF4CAF50)
                     )
-                    
+
                     Divider(color = Color(0xFF4CAF50), thickness = 1.dp)
-                    
+
                     manager.value?.let { currentManager ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -112,7 +114,7 @@ fun TeamDetailsScreen(
                                     color = Color.Gray
                                 )
                             }
-                            
+
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = Color(0xFF4CAF50)
@@ -148,56 +150,62 @@ fun TeamDetailsScreen(
                     groupedPlayers[position]?.let { playersInPosition ->
                         item {
                             Text(
-                                text = position,
+                                text = "$position (${playersInPosition.size})", // Oyuncu sayısını da göster
                                 color = Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF4CAF50))
+                                    .padding(8.dp)
                             )
                         }
 
                         items(
                             items = playersInPosition,
-                            key = { it.playerId } // Önemli: Her oyuncu için benzersiz bir key kullan
+                            key = { it.playerId }
                         ) { player ->
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White
-                                )
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    // Forma numarası
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFF4CAF50), CircleShape),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        // Forma numarası
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .background(Color(0xFF4CAF50), CircleShape),
-                                            contentAlignment = Alignment.Center
+                                        Text(
+                                            text = player.shirtNumber.toString(),
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    // Oyuncu bilgileri
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = player.name,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = player.shirtNumber.toString(),
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                                
-                                        // Oyuncu bilgileri
-                                        Column {
-                                            Text(
-                                                text = player.name,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
                                             Text(
                                                 text = player.nationality,
                                                 fontSize = 14.sp,
@@ -205,13 +213,17 @@ fun TeamDetailsScreen(
                                             )
                                         }
                                     }
-                                            
+
                                     // Yetenek puanı
                                     Text(
                                         text = player.skill.toString(),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF4CAF50)
+                                        color = when {
+                                            player.skill >= 80 -> Color(0xFF4CAF50) // Yeşil
+                                            player.skill >= 70 -> Color(0xFFFFA726) // Turuncu
+                                            else -> Color(0xFFEF5350) // Kırmızı
+                                        }
                                     )
                                 }
                             }

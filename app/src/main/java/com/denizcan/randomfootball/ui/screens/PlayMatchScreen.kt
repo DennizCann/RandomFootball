@@ -27,17 +27,41 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-// Maç simülasyonu yardımcı fonksiyonları
-private fun calculateAttackPoints(players: List<Player>): Int {
-    return players
-        .filter { it.position == "Midfielder" || it.position == "Forward" }
-        .sumOf { it.skill }
+// Maç fazlarını temsil eden enum
+private enum class MatchPhase {
+    NOT_STARTED,      // Maç başlamadı
+    FIRST_PHASE,      // İlk faz (Hücum-Savunma karşılaştırması)
+    SECOND_PHASE,     // 15. dakika
+    THIRD_PHASE,      // 30. dakika
+    FOURTH_PHASE,     // 45. dakika
+    FIFTH_PHASE,      // 60. dakika
+    SIXTH_PHASE,      // 75. dakika
+    MATCH_ENDED       // 90. dakika - Maç bitti
 }
 
-private fun calculateDefensePoints(players: List<Player>): Int {
-    return players
+// Takım istatistiklerini tutan data class
+private data class TeamStats(
+    val attackPoints: Int,
+    val defensePoints: Int
+)
+
+// Takım puanlarını hesaplayan fonksiyonlar
+private fun calculateTeamStats(players: List<Player>): TeamStats {
+    // Hücum puanı (Orta saha + Forvet)
+    val attackPoints = (players
+        .filter { it.position == "Midfielder" || it.position == "Forward" }
+        .sortedByDescending { it.skill }
+        .take(6) // En iyi 6 hücum oyuncusu
+        .sumOf { it.skill } * 0.8).toInt() // Hücum puanını %80'e düşür
+
+    // Savunma puanı (Kaleci + Defans)
+    val defensePoints = players
         .filter { it.position == "Goalkeeper" || it.position == "Defender" }
+        .sortedByDescending { it.skill }
+        .take(5) // En iyi 5 savunma oyuncusu
         .sumOf { it.skill }
+
+    return TeamStats(attackPoints, defensePoints)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +78,7 @@ fun PlayMatchScreen(
     val teamDao = remember { database.teamDao() }
     val playerDao = remember { database.playerDao() }
 
+    // Database state'leri
     val fixture = fixtureDao.getFixtureById(fixtureId).collectAsState(initial = null)
     val homeTeam = remember(fixture.value?.homeTeamId) {
         fixture.value?.homeTeamId?.let { teamDao.getTeamById(it) }
@@ -70,41 +95,54 @@ fun PlayMatchScreen(
         fixture.value?.awayTeamId?.let { playerDao.getPlayersByTeamId(it) }
     }?.collectAsState(initial = emptyList())
 
-    // Skor ve animasyon state'leri
+    // Maç state'leri
+    var currentPhase by remember { mutableStateOf(MatchPhase.NOT_STARTED) }
+    var currentMinute by remember { mutableStateOf(0) }
+    var currentTeamWithBall by remember { mutableStateOf<String?>(null) }
     var homeScore by remember { mutableStateOf(0) }
     var awayScore by remember { mutableStateOf(0) }
-    var scoringTeam by remember { mutableStateOf<String?>(null) }
-    var showGoalAnimation by remember { mutableStateOf(false) }
-
-    // Maç durumu için state'ler
-    var matchPhase by remember { mutableStateOf(0) } // 0: Başlamadı, 1: İlk tur, 2-4: Random turlar, 5: Bitti
+    var isMatchInProgress by remember { mutableStateOf(false) }
     var isMatchEnded by remember { mutableStateOf(false) }
-    var currentTeamScoring by remember { mutableStateOf<String?>(null) } // Şu an hangi takım oynuyor
+
+    // Animasyon state'leri
     var showBallAnimation by remember { mutableStateOf(false) }
     var showTeamAnimation by remember { mutableStateOf(false) }
 
-    // State'leri tanımladığımız yere ekleyelim
-    var isMatchInProgress by remember { mutableStateOf(false) }
+    // Faz durumlarını takip etmek için yeni state'ler
+    var homeTeamPlayed by remember { mutableStateOf(false) }
+    var awayTeamPlayed by remember { mutableStateOf(false) }
 
-    // Tüm fonksiyonları remember içinde tanımlayalım (en üste taşındı)
-    val functions = remember {
+    // Maç simülasyonu fonksiyonları
+    val matchFunctions = remember {
         object {
-            var checkRandomGoal: ((String) -> Unit)? = null
-            var checkAwayTeamGoal: (() -> Unit)? = null
-            var checkHomeTeamGoal: (() -> Unit)? = null
-            var showMatchEndAnimation: (() -> Unit)? = null
+            var simulateFirstPhase: (() -> Unit)? = null
+            var simulateRandomPhase: ((String) -> Unit)? = null
+            var proceedToNextPhase: (() -> Unit)? = null
+            var endMatch: (() -> Unit)? = null
             var simulateMatch: (() -> Unit)? = null
         }
     }
 
-    // Animasyon state'leri
+    // Faz geçişlerini yöneten fonksiyon
+    fun checkPhaseCompletion() {
+        if (homeTeamPlayed && awayTeamPlayed) {
+            homeTeamPlayed = false
+            awayTeamPlayed = false
+            matchFunctions.proceedToNextPhase?.invoke()
+        }
+    }
+
+    // Animasyon değerleri
     val ballPosition by animateFloatAsState(
         targetValue = if (showBallAnimation) 1f else 0f,
         animationSpec = tween(1000),
         finishedListener = {
             if (showBallAnimation) {
-                showBallAnimation = false
-                showTeamAnimation = true // Top animasyonu bitince takım animasyonu başlasın
+                scope.launch {
+                    delay(200) // Kısa bir gecikme
+                    showBallAnimation = false
+                    showTeamAnimation = true
+                }
             }
         }
     )
@@ -114,32 +152,48 @@ fun PlayMatchScreen(
         animationSpec = tween(500),
         finishedListener = {
             if (showTeamAnimation) {
-                showTeamAnimation = false
-                when (matchPhase) {
-                    1 -> {
-                        if (currentTeamScoring == "home") {
-                            currentTeamScoring = "away"
-                            functions.checkAwayTeamGoal?.invoke()
-                        } else {
-                            matchPhase = 2
-                            currentTeamScoring = "home"
-                            functions.checkRandomGoal?.invoke("home")
-                        }
-                    }
-                    2, 3, 4 -> {
-                        if (currentTeamScoring == "home") {
-                            currentTeamScoring = "away"
-                            functions.checkRandomGoal?.invoke("away")
-                        } else {
-                            matchPhase++
-                            if (matchPhase <= 4) {
-                                currentTeamScoring = "home"
-                                functions.checkRandomGoal?.invoke("home")
-                            } else {
-                                isMatchEnded = true
-                                functions.showMatchEndAnimation?.invoke()
+                scope.launch {
+                    delay(1000)
+                    showTeamAnimation = false
+                    
+                    when (currentPhase) {
+                        MatchPhase.FIRST_PHASE -> {
+                            delay(500)
+                            when (currentTeamWithBall) {
+                                "home" -> {
+                                    homeTeamPlayed = true
+                                    if (!awayTeamPlayed) {
+                                        currentTeamWithBall = "away"
+                                        matchFunctions.simulateFirstPhase?.invoke()
+                                    }
+                                }
+                                "away" -> {
+                                    awayTeamPlayed = true
+                                    checkPhaseCompletion()
+                                }
                             }
                         }
+                        MatchPhase.SECOND_PHASE,
+                        MatchPhase.THIRD_PHASE,
+                        MatchPhase.FOURTH_PHASE,
+                        MatchPhase.FIFTH_PHASE,
+                        MatchPhase.SIXTH_PHASE -> {
+                            delay(500)
+                            when (currentTeamWithBall) {
+                                "home" -> {
+                                    homeTeamPlayed = true
+                                    if (!awayTeamPlayed) {
+                                        currentTeamWithBall = "away"
+                                        matchFunctions.simulateRandomPhase?.invoke("away")
+                                    }
+                                }
+                                "away" -> {
+                                    awayTeamPlayed = true
+                                    checkPhaseCompletion()
+                                }
+                            }
+                        }
+                        else -> {}
                     }
                 }
             }
@@ -152,69 +206,120 @@ fun PlayMatchScreen(
     )
 
     // Fonksiyonları tanımla
-    functions.checkRandomGoal = { team: String ->
-        if ((0..1).random() == 1) {
+    matchFunctions.simulateFirstPhase = {
+        homePlayers?.value?.let { hPlayers ->
+            awayPlayers?.value?.let { aPlayers ->
+                val homeStats = calculateTeamStats(hPlayers)
+                val awayStats = calculateTeamStats(aPlayers)
+
+                when (currentTeamWithBall) {
+                    "home" -> {
+                        // Sadece hücum > savunma kontrolü
+                        if (homeStats.attackPoints > awayStats.defensePoints) {
+                            homeScore++
+                            showBallAnimation = true
+                        } else {
+                            homeTeamPlayed = true
+                            if (!awayTeamPlayed) {
+                                currentTeamWithBall = "away"
+                                scope.launch {
+                                    delay(500)
+                                    matchFunctions.simulateFirstPhase?.invoke()
+                                }
+                            }
+                        }
+                    }
+                    "away" -> {
+                        // Sadece hücum > savunma kontrolü
+                        if (awayStats.attackPoints > homeStats.defensePoints) {
+                            awayScore++
+                            showBallAnimation = true
+                        } else {
+                            awayTeamPlayed = true
+                            checkPhaseCompletion()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    matchFunctions.simulateRandomPhase = { team ->
+        if ((1..5).random() == 5) { // %20 şans (1/5)
             if (team == "home") homeScore++ else awayScore++
-            currentTeamScoring = team
+            currentTeamWithBall = team
             showBallAnimation = true
         } else {
-            if (team == "home") {
-                currentTeamScoring = "away"
-                functions.checkRandomGoal?.invoke("away")
-            } else {
-                matchPhase++
-                if (matchPhase <= 4) {
-                    currentTeamScoring = "home"
-                    functions.checkRandomGoal?.invoke("home")
-                } else {
-                    isMatchEnded = true
-                    functions.showMatchEndAnimation?.invoke()
+            when (team) {
+                "home" -> {
+                    homeTeamPlayed = true
+                    if (!awayTeamPlayed) {
+                        currentTeamWithBall = "away"
+                        scope.launch {
+                            delay(500)
+                            matchFunctions.simulateRandomPhase?.invoke("away")
+                        }
+                    } else {
+                        checkPhaseCompletion()
+                    }
+                }
+                "away" -> {
+                    awayTeamPlayed = true
+                    checkPhaseCompletion()
                 }
             }
         }
     }
 
-    functions.checkAwayTeamGoal = {
-        homePlayers?.value?.let { hPlayers ->
-            awayPlayers?.value?.let { aPlayers ->
-                val awayAttackPoints = calculateAttackPoints(aPlayers)
-                val homeDefensePoints = calculateDefensePoints(hPlayers)
-
-                if (awayAttackPoints > homeDefensePoints) {
-                    awayScore++
-                    currentTeamScoring = "away"
-                    showBallAnimation = true
-                } else {
-                    matchPhase = 2
-                    currentTeamScoring = "home"
-                    functions.checkRandomGoal?.invoke("home")
-                }
+    matchFunctions.proceedToNextPhase = {
+        when (currentPhase) {
+            MatchPhase.NOT_STARTED -> {
+                currentPhase = MatchPhase.FIRST_PHASE
+                currentMinute = 0
             }
+            MatchPhase.FIRST_PHASE -> {
+                currentPhase = MatchPhase.SECOND_PHASE
+                currentMinute = 15
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.SECOND_PHASE -> {
+                currentPhase = MatchPhase.THIRD_PHASE
+                currentMinute = 30
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.THIRD_PHASE -> {
+                currentPhase = MatchPhase.FOURTH_PHASE
+                currentMinute = 45
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.FOURTH_PHASE -> {
+                currentPhase = MatchPhase.FIFTH_PHASE
+                currentMinute = 60
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.FIFTH_PHASE -> {
+                currentPhase = MatchPhase.SIXTH_PHASE
+                currentMinute = 75
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.SIXTH_PHASE -> {
+                currentPhase = MatchPhase.MATCH_ENDED
+                currentMinute = 90
+                matchFunctions.endMatch?.invoke()
+            }
+            else -> {}
         }
     }
 
-    functions.checkHomeTeamGoal = {
-        homePlayers?.value?.let { hPlayers ->
-            awayPlayers?.value?.let { aPlayers ->
-                val homeAttackPoints = calculateAttackPoints(hPlayers)
-                val awayDefensePoints = calculateDefensePoints(aPlayers)
-
-                if (homeAttackPoints > awayDefensePoints) {
-                    homeScore++
-                    currentTeamScoring = "home"
-                    showBallAnimation = true
-                } else {
-                    currentTeamScoring = "away"
-                    functions.checkAwayTeamGoal?.invoke()
-                }
-            }
-        }
-    }
-
-    functions.showMatchEndAnimation = {
+    matchFunctions.endMatch = {
         isMatchEnded = true
-        isMatchInProgress = false  // Maç bitti
-        
+        isMatchInProgress = false
+
         fixture.value?.let { currentFixture ->
             scope.launch {
                 // Maç sonucunu kaydet
@@ -234,39 +339,23 @@ fun PlayMatchScreen(
                     awayScore = awayScore
                 )
 
-                // Aynı haftadaki diğer maçları al
-                val allFixtures = fixtureDao.getFixturesByWeek(
-                    leagueId = currentFixture.leagueId,
-                    week = currentFixture.week
-                )
-
-                // Diğer maçların sonuçlarını da kaydet ve tablolarını güncelle
-                allFixtures
-                    .filter { it.fixtureId != currentFixture.fixtureId }
-                    .forEach { fixture ->
-                        leagueTableDao.updateAfterMatch(
-                            leagueId = fixture.leagueId,
-                            homeTeamId = fixture.homeTeamId,
-                            awayTeamId = fixture.awayTeamId,
-                            homeScore = fixture.homeScore,
-                            awayScore = fixture.awayScore
-                        )
-                    }
-
                 delay(2000)
                 onMatchEnd()
             }
         }
     }
 
-    functions.simulateMatch = {
-        isMatchInProgress = true  // Maç başladı
+    matchFunctions.simulateMatch = {
+        isMatchInProgress = true
         homeScore = 0
         awayScore = 0
-        matchPhase = 1
-        currentTeamScoring = "home"
+        currentPhase = MatchPhase.FIRST_PHASE
+        currentMinute = 0
+        homeTeamPlayed = false
+        awayTeamPlayed = false
+        currentTeamWithBall = "home"
 
-        // Aynı haftadaki tüm maçları al
+        // Diğer maçların simülasyonu
         fixture.value?.let { currentFixture ->
             scope.launch {
                 // Önce oyundaki tüm ligleri al
@@ -282,30 +371,29 @@ fun PlayMatchScreen(
 
                     // Her maç için simülasyon yap (bizim maçımız hariç)
                     allFixtures
-                        .filter { it.fixtureId != currentFixture.fixtureId }  // Bizim maçı filtrele
+                        .filter { it.fixtureId != currentFixture.fixtureId }
                         .forEach { weekFixture ->
-                            // Takımların oyuncularını al
                             val homeTeamPlayers = playerDao.getPlayersByTeamId(weekFixture.homeTeamId).first()
                             val awayTeamPlayers = playerDao.getPlayersByTeamId(weekFixture.awayTeamId).first()
 
-                            // Puanları hesapla
-                            val homeAttackPoints = calculateAttackPoints(homeTeamPlayers)
-                            val homeDefensePoints = calculateDefensePoints(homeTeamPlayers)
-                            val awayAttackPoints = calculateAttackPoints(awayTeamPlayers)
-                            val awayDefensePoints = calculateDefensePoints(awayTeamPlayers)
+                            val homeStats = calculateTeamStats(homeTeamPlayers)
+                            val awayStats = calculateTeamStats(awayTeamPlayers)
 
-                            // Skorları hesapla
                             var homeGoals = 0
                             var awayGoals = 0
 
-                            // İlk tur (puanlara göre)
-                            if (homeAttackPoints > awayDefensePoints) homeGoals++
-                            if (awayAttackPoints > homeDefensePoints) awayGoals++
+                            // İlk faz - Sadece puanlar
+                            if (homeStats.attackPoints > awayStats.defensePoints) {
+                                homeGoals++
+                            }
+                            if (awayStats.attackPoints > homeStats.defensePoints) {
+                                awayGoals++
+                            }
 
-                            // Random turlar (3 tur)
-                            repeat(3) {
-                                if ((0..1).random() == 1) homeGoals++
-                                if ((0..1).random() == 1) awayGoals++
+                            // Diğer 5 faz - Sadece %20 şans
+                            repeat(5) {
+                                if ((1..5).random() == 5) homeGoals++
+                                if ((1..5).random() == 5) awayGoals++
                             }
 
                             // Maç sonucunu kaydet
@@ -330,10 +418,23 @@ fun PlayMatchScreen(
         }
 
         // Görünen maç için animasyonlu simülasyonu başlat
-        functions.checkHomeTeamGoal?.invoke()
+        matchFunctions.simulateFirstPhase?.invoke()
     }
 
-    // UI kısmı
+    // Takımların en iyi 11'lerinin puanlarını hesapla
+    val homeTeamStats = remember(homePlayers?.value) {
+        homePlayers?.value?.let { players ->
+            calculateTeamStats(players)
+        } ?: TeamStats(0, 0)
+    }
+
+    val awayTeamStats = remember(awayPlayers?.value) {
+        awayPlayers?.value?.let { players ->
+            calculateTeamStats(players)
+        } ?: TeamStats(0, 0)
+    }
+
+    // UI
     Scaffold(
         topBar = {
             TopBar(
@@ -342,9 +443,7 @@ fun PlayMatchScreen(
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -354,14 +453,146 @@ fun PlayMatchScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Hafta bilgisi
-                fixture.value?.let { currentFixture ->
+                // Hafta ve dakika bilgisi
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    fixture.value?.let { currentFixture ->
+                        Text(
+                            text = "Week ${currentFixture.week}",
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
                     Text(
-                        text = "Week ${currentFixture.week}",
+                        text = "$currentMinute'",
                         color = Color.White,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                // Takımların en iyi 11'lerinin puanlarını hesapla
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Ev sahibi takım puanları
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = homeTeam?.value?.name ?: "Home Team",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Attack",
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = homeTeamStats.attackPoints.toString(),
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Defense",
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = homeTeamStats.defensePoints.toString(),
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // VS yazısı
+                        Text(
+                            text = "VS",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        // Deplasman takım puanları
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = awayTeam?.value?.name ?: "Away Team",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Attack",
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = awayTeamStats.attackPoints.toString(),
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Defense",
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = awayTeamStats.defensePoints.toString(),
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Maç kartı
@@ -425,13 +656,14 @@ fun PlayMatchScreen(
 
                 // Oyna butonu
                 Button(
-                    onClick = { functions.simulateMatch?.invoke() },
-                    enabled = !isMatchEnded && !isMatchInProgress,  // İki durumda da disable
+                    onClick = { matchFunctions.simulateMatch?.invoke() },
+                    enabled = !isMatchEnded && !isMatchInProgress,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!isMatchEnded && !isMatchInProgress) Color(0xFF388E3C) else Color.Gray
+                        containerColor = if (!isMatchEnded && !isMatchInProgress) 
+                            Color(0xFF388E3C) else Color.Gray
                     )
                 ) {
                     Text(
@@ -449,26 +681,10 @@ fun PlayMatchScreen(
             // Animasyonlar
             if (showBallAnimation || showTeamAnimation) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (showBallAnimation) {
-                        // Top animasyonu
-                        Icon(
-                            painter = painterResource(id = R.drawable.baseline_sports_soccer_24),
-                            contentDescription = "Goal",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .offset(
-                                    x = (LocalConfiguration.current.screenWidthDp * ballPosition).dp,
-                                    y = (LocalConfiguration.current.screenHeightDp * 0.66f).dp  // 2/3 oranında aşağıda
-                                )
-                                .rotate(ballRotation),
-                            tint = Color.White
-                        )
-                    }
-                    
                     if (showTeamAnimation) {
                         // Takım gol yazısı
                         Text(
-                            text = when (currentTeamScoring) {
+                            text = when (currentTeamWithBall) {
                                 "home" -> "${homeTeam?.value?.name} SCORES!!!"
                                 "away" -> "${awayTeam?.value?.name} SCORES!!!"
                                 else -> "GOAL!!!"
@@ -482,8 +698,24 @@ fun PlayMatchScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
-                                .offset(y = (LocalConfiguration.current.screenHeightDp * 0.55f).dp)
+                                .offset(y = (LocalConfiguration.current.screenHeightDp * 0.75f).dp)
                                 .alpha(teamTextAlpha)
+                        )
+                    }
+                    
+                    if (showBallAnimation) {
+                        // Top animasyonu
+                        Icon(
+                            painter = painterResource(id = R.drawable.baseline_sports_soccer_24),
+                            contentDescription = "Goal",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .offset(
+                                    x = (LocalConfiguration.current.screenWidthDp * ballPosition).dp,
+                                    y = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
+                                )
+                                .rotate(ballRotation),
+                            tint = Color.White
                         )
                     }
                 }

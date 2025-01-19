@@ -19,30 +19,25 @@ object FixtureGenerator {
             
             // Her haftadaki maçları oluştur
             for (match in 0 until matchesPerRound) {
-                val home = teamsList[match]
-                val away = teamsList[teamCount - 1 - match]
+                val team1 = teamsList[match]
+                val team2 = teamsList[teamCount - 1 - match]
                 
-                // Çift sayılı haftalarda ev sahibi/deplasman takımlarını değiştir
-                // Bu sayede takımlar daha dengeli bir şekilde ev/deplasman maçı yapacak
-                val fixture = if ((round + match) % 2 == 0) {
-                    Fixture(
-                        gameId = gameId,
-                        leagueId = leagueId,
-                        homeTeamId = home,
-                        awayTeamId = away,
-                        week = round + 1
-                    )
+                // Tek sayılı haftalarda team1 ev sahibi, çift sayılı haftalarda team2 ev sahibi
+                val (homeTeam, awayTeam) = if (round % 2 == 0) {
+                    team1 to team2
                 } else {
-                    Fixture(
-                        gameId = gameId,
-                        leagueId = leagueId,
-                        homeTeamId = away,
-                        awayTeamId = home,
-                        week = round + 1
-                    )
+                    team2 to team1
                 }
                 
-                roundFixtures.add(fixture)
+                roundFixtures.add(
+                    Fixture(
+                        gameId = gameId,
+                        leagueId = leagueId,
+                        homeTeamId = homeTeam,
+                        awayTeamId = awayTeam,
+                        week = round + 1
+                    )
+                )
             }
             
             fixtures.addAll(roundFixtures)

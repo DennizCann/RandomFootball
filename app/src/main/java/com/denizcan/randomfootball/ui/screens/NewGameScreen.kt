@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
+import com.denizcan.randomfootball.data.dao.ManagerDao
+import com.denizcan.randomfootball.data.dao.PlayerDao
 import com.denizcan.randomfootball.data.model.Game
 import com.denizcan.randomfootball.data.model.League
 import com.denizcan.randomfootball.data.model.Manager
@@ -144,9 +146,9 @@ fun NewGameScreen(
         "France",        // 2 Dünya Kupası şampiyonluğu
         "England",       // 1 Dünya Kupası şampiyonluğu
         "Spain",         // 1 Dünya Kupası şampiyonluğu
-        "Netherlands",   // 3 Dünya Kupası finalisti, şampiyonluk yok
+        "Netherlands",   // 3 Dünya Kupası finalisti
         "Portugal",      // Cristiano Ronaldo gibi oyuncularla son yıllarda başarılı
-        "Belgium"        // FIFA dünya sıralamasında uzun süre 1 numarada kaldı
+        "Turkey"         // Türk futbolunu temsilen
     )
 
     val positions = listOf(
@@ -472,49 +474,50 @@ fun NewGameScreen(
         "Van der Zee", "Van Amersfoort", "Van Vliet", "Dekkers", "Van Bemmel"
     )
 
-    val belgiumMaleNames = listOf(
-        "Lucas", "Liam", "Noah", "Ethan", "Arthur",
-        "Louis", "Nathan", "Gabriel", "Jules", "Victor",
-        "Adam", "Oscar", "Matteo", "Alexander", "Thomas",
-        "Hugo", "Aaron", "Emile", "Leon", "Maxime",
-        "Simon", "Benjamin", "Florent", "David", "Theo",
-        "Ruben", "Mathis", "Samuel", "Quentin", "Dylan",
-        "Martin", "Julien", "Emmanuel", "Sébastien", "Antoine",
-        "Axel", "Jonas", "Nicolas", "Kevin", "Robin",
-        "Jeremy", "Elias", "Max", "Arnaud", "Timothy",
-        "Cedric", "Felix", "Adrien", "Pierre", "Milo",
-        "Guillaume", "Yannick", "Paul", "Christian", "Bastien",
-        "Alexis", "Vince", "Frederik", "Jean", "Michel",
-        "Romain", "Charles", "Gauthier", "Marcel", "Loic",
-        "Jérôme", "Etienne", "Thibault", "Hendrik", "Karel",
-        "Stijn", "Bart", "Willem", "Jens", "Sven",
-        "Elliot", "Tim", "Lars", "Koen", "Jan",
-        "Gilles", "Jelle", "Daan", "Maarten", "Niels",
-        "Wout", "Victor", "Jordi", "Tom", "Benoit",
-        "Cédric", "Andreas", "Tanguy", "Luc", "Xander",
-        "Gianni", "René", "Bram", "Théo", "Francis"
+    val turkeyMaleNames = listOf(
+        "Mehmet", "Ahmet", "Mustafa", "Ali", "Hüseyin",
+        "İbrahim", "Yusuf", "Ömer", "Osman", "Emre",
+        "Burak", "Arda", "Cengiz", "Volkan", "Oğuzhan",
+        "Serdar", "Hakan", "Mert", "Cenk", "Kerem",
+        "Çağlar", "Dorukhan", "Kaan", "Okay", "Yılmaz",
+        "Uğurcan", "Altay", "Merih", "Zeki", "Umut",
+        "Enes", "Halil", "Berat", "Taylan", "Efecan",
+        "Barış", "Gökhan", "Furkan", "Batuhan", "Berkay",
+        "Deniz", "Ertuğrul", "Ferdi", "İsmail", "Rıdvan",
+        "Salih", "Taha", "Yunus", "Abdülkadir", "Berke",
+        "Can", "Doğan", "Erdem", "Fatih", "Görkem",
+        "Halit", "İlkay", "Kağan", "Mahmut", "Necip",
+        "Onur", "Polat", "Recep", "Selçuk", "Tarık",
+        "Utku", "Vedat", "Yasin", "Zafer", "Alper",
+        "Bilal", "Caner", "Doğukan", "Eren", "Ferhat",
+        "Semih", "Tolga", "Yiğit", "Alperen", "Atakan",
+        "Berk", "Cemal", "Çınar", "Dağhan", "Emir",
+        "Fırat", "Hamza", "İnanç", "Koray", "Levent",
+        "Melih", "Nazım", "Orhan", "Özgür", "Ramazan",
+        "Sinan", "Tuğrul", "Ufuk", "Yavuz", "Zekeriya"
     )
 
-    val belgiumSurnames = listOf(
-        "Peeters", "Janssens", "Maes", "Jacobs", "Willems",
-        "Claes", "Goossens", "Wouters", "De Smet", "De Jong",
-        "Lemmens", "Vermeulen", "Van den Broeck", "Mertens", "Aerts",
-        "Van den Berghe", "Martens", "Smets", "Boons", "De Vries",
-        "Van Damme", "Hendrickx", "Bauwens", "Lambrechts", "Michiels",
-        "Stevens", "Van Dyck", "Vandamme", "Thijs", "Dumont",
-        "Van de Velde", "Segers", "Verstraeten", "Pieters", "De Clercq",
-        "De Vos", "De Cock", "De Winter", "De Backer", "Vandenberghe",
-        "Van Leeuwen", "De Ridder", "Van den Heuvel", "Van Acker", "Dierckx",
-        "Vandenbosch", "Wouters", "De Coster", "Huygens", "Dujardin",
-        "Coenen", "Vancoppenolle", "De Meyer", "De Wilde", "Van Rooy",
-        "Declercq", "Van Pelt", "Verbeke", "Verschueren", "Vandenbroucke",
-        "De Bruyn", "Van Loon", "De Graeve", "Van der Linden", "De Coninck",
-        "De Man", "Vervaet", "Vandenberg", "Van Hoof", "Van Gorp",
-        "Vervaeke", "Luyten", "Baeten", "Van Hove", "Vandenplas",
-        "Vandewalle", "Vandenbulcke", "Debruyne", "Vanderhaegen", "Desmet",
-        "Van Geel", "Vanderlinden", "Hendrikx", "Verbist", "Vandebroeck",
-        "Van Hoorde", "Schreurs", "Geerts", "Van Rompaey", "Van den Eynde",
-        "De Pauw", "Vandenbussche", "Van de Walle", "Van Laer", "Vandervoort"
+    val turkeySurnames = listOf(
+        "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin",
+        "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir",
+        "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin",
+        "Erdoğan", "Koç", "Kurt", "Özkan", "Şimşek",
+        "Korkmaz", "Çakır", "Alkan", "Bulut", "Keskin",
+        "Turan", "Güler", "Yalçın", "Polat", "Aktaş",
+        "Altun", "Duran", "Ateş", "Avcı", "Yüksel",
+        "Tekin", "Kara", "Ünal", "Aksoy", "Erdem",
+        "Güneş", "Kaplan", "Özer", "Güzel", "Şen",
+        "Taş", "Özcan", "Kartal", "Acar", "Yavuz",
+        "Gül", "Sönmez", "Çetinkaya", "Demirci", "Ercan",
+        "Akın", "Türk", "Kocaman", "Özbek", "Aydoğan",
+        "Erbaş", "Gündüz", "Işık", "Kahveci", "Mutlu",
+        "Ocak", "Parlak", "Sağlam", "Toprak", "Uysal",
+        "Varol", "Yaman", "Zengin", "Akbaş", "Başaran",
+        "Sarı", "Kılınç", "Yörük", "Akman", "Bilgin",
+        "Demirel", "Ekinci", "Fazlı", "Gökçe", "Hacıoğlu",
+        "İnan", "Kalaycı", "Mercan", "Nalçacı", "Oğuz",
+        "Poyraz", "Rüzgar", "Soylu", "Tanrıverdi", "Uçar",
+        "Vural", "Yücel", "Zorlu", "Aksu", "Bayrak"
     )
 
     val argentinaMaleNames = listOf(
@@ -644,7 +647,7 @@ fun NewGameScreen(
         "Italy" to Pair(italyMaleNames, italySurnames),
         "Portugal" to Pair(portugalMaleNames, portugalSurnames),
         "Netherlands" to Pair(netherlandsMaleNames, netherlandsSurnames),
-        "Belgium" to Pair(belgiumMaleNames, belgiumSurnames),
+        "Turkey" to Pair(turkeyMaleNames, turkeySurnames),
         "Argentina" to Pair(argentinaMaleNames, argentinaSurnames),
         "Brazil" to Pair(brazilMaleNames, brazilSurnames)
     )
@@ -661,46 +664,20 @@ fun NewGameScreen(
         "5-4-1"
     )
 
-    // Renk üretme fonksiyonu
-    fun generateRandomColor(): String {
-        val colors = listOf(
-            "#FF0000", // Kırmızı
-            "#00FF00", // Yeşil
-            "#0000FF", // Mavi
-            "#FFFF00", // Sarı
-            "#FF00FF", // Magenta
-            "#00FFFF", // Cyan
-            "#800000", // Bordo
-            "#008000", // Koyu Yeşil
-            "#000080", // Lacivert
-            "#008080", // Turkuaz
-            "#FF1493", // Pembe
-            "#4682B4", // Çelik Mavisi
-            "#8B4513", // Kahverengi
-            "#556B2F", // Koyu Yeşil
-            "#483D8B", // Koyu Slate Mavi
-            "#B8860B"  // Koyu Altın
-        )
-        return colors.random()
-    }
-
-    fun generateRandomName(): Pair<String, String> {  // İsim ve milliyet döndürür
-        // Rastgele Milliyet Belirleme
+    fun generateRandomName(gameId: Long): Pair<String, String> {
         val selectedNationality = topFootballCountries.random()
-
-        // Milliyete Göre İsim ve Soyisim Listelerini Al
         val (nameList, surnameList) = namesByNationality[selectedNationality]!!
-
-        // Rastgele İsim ve Soyisim Seç
+        
         val firstName = nameList.random()
         val lastName = surnameList.random()
 
         return Pair("$firstName $lastName", selectedNationality)
     }
 
-    fun generatePlayers(teamId: Long, formation: String): List<Player> {
+    fun generatePlayers(gameId: Long, teamId: Long, formation: String): List<Player> {
         val players = mutableListOf<Player>()
         val usedShirtNumbers = mutableSetOf<Int>()
+        val usedNames = mutableSetOf<String>()
 
         // Formasyonu parse et (örn: "4-3-3")
         val formationParts = formation.split("-").map { it.toInt() }
@@ -708,25 +685,191 @@ fun NewGameScreen(
         val midfielders = formationParts[1]
         val forwards = formationParts[2]
 
-        // Kaleci oluştur (her formasyonda 1 kaleci)
-        val (goalkeeperName, goalkeeperNationality) = generateRandomName()
+        // Pozisyonlara göre kullanılabilecek forma numaraları
+        val goalkeeperNumbers = setOf(1)
+        val defenderNumbers = setOf(2, 3, 4, 5, 6)
+        val midfielderNumbers = setOf(7, 8)
+        val forwardNumbers = setOf(9)
+        val attackingNumbers = setOf(10, 11) // Forvet ve orta saha için
+        val commonNumbers = (12..99).toSet() // Tüm pozisyonlar için
+
+        fun getAvailableNumber(position: String): Int {
+            val availableNumbers = when (position) {
+                "Goalkeeper" -> {
+                    if (!usedShirtNumbers.containsAll(goalkeeperNumbers)) {
+                        goalkeeperNumbers - usedShirtNumbers
+                    } else commonNumbers - usedShirtNumbers
+                }
+                "Defender" -> {
+                    if (!usedShirtNumbers.containsAll(defenderNumbers)) {
+                        defenderNumbers - usedShirtNumbers
+                    } else commonNumbers - usedShirtNumbers
+                }
+                "Midfielder" -> {
+                    val midfielderPool = if (!usedShirtNumbers.containsAll(midfielderNumbers)) {
+                        midfielderNumbers - usedShirtNumbers
+                    } else if (!usedShirtNumbers.containsAll(attackingNumbers)) {
+                        attackingNumbers - usedShirtNumbers
+                    } else commonNumbers - usedShirtNumbers
+                    midfielderPool
+                }
+                "Forward" -> {
+                    val forwardPool = if (!usedShirtNumbers.containsAll(forwardNumbers)) {
+                        forwardNumbers - usedShirtNumbers
+                    } else if (!usedShirtNumbers.containsAll(attackingNumbers)) {
+                        attackingNumbers - usedShirtNumbers
+                    } else commonNumbers - usedShirtNumbers
+                    forwardPool
+                }
+                else -> commonNumbers - usedShirtNumbers
+            }
+            return availableNumbers.random()
+        }
+
+        fun createTeam(isFirstTeam: Boolean) {
+            // Kaleci
+            var (goalkeeperName, goalkeeperNationality) = generateRandomName(gameId)
+            while (goalkeeperName in usedNames) {
+                val newName = generateRandomName(gameId)
+                goalkeeperName = newName.first
+                goalkeeperNationality = newName.second
+            }
+            usedNames.add(goalkeeperName)
+
+            val shirtNumber = getAvailableNumber("Goalkeeper")
+            usedShirtNumbers.add(shirtNumber)
+
+            players.add(
+                Player(
+                    teamId = teamId,
+                    name = goalkeeperName,
+                    nationality = goalkeeperNationality,
+                    position = "Goalkeeper",
+                    shirtNumber = shirtNumber,
+                    skill = if (isFirstTeam) (65..90).random() else (55..75).random()
+                )
+            )
+
+            // Defans
+            repeat(defenders) {
+                var (defenderName, defenderNationality) = generateRandomName(gameId)
+                while (defenderName in usedNames) {
+                    val newName = generateRandomName(gameId)
+                    defenderName = newName.first
+                    defenderNationality = newName.second
+                }
+                usedNames.add(defenderName)
+
+                val defenderNumber = getAvailableNumber("Defender")
+                usedShirtNumbers.add(defenderNumber)
+
+                players.add(
+                    Player(
+                        teamId = teamId,
+                        name = defenderName,
+                        nationality = defenderNationality,
+                        position = "Defender",
+                        shirtNumber = defenderNumber,
+                        skill = if (isFirstTeam) (65..90).random() else (55..75).random()
+                    )
+                )
+            }
+
+            // Orta saha
+            repeat(midfielders) {
+                var (midfielderName, midfielderNationality) = generateRandomName(gameId)
+                while (midfielderName in usedNames) {
+                    val newName = generateRandomName(gameId)
+                    midfielderName = newName.first
+                    midfielderNationality = newName.second
+                }
+                usedNames.add(midfielderName)
+
+                val midfielderNumber = getAvailableNumber("Midfielder")
+                usedShirtNumbers.add(midfielderNumber)
+
+                players.add(
+                    Player(
+                        teamId = teamId,
+                        name = midfielderName,
+                        nationality = midfielderNationality,
+                        position = "Midfielder",
+                        shirtNumber = midfielderNumber,
+                        skill = if (isFirstTeam) (65..90).random() else (55..75).random()
+                    )
+                )
+            }
+
+            // Forvet
+            repeat(forwards) {
+                var (forwardName, forwardNationality) = generateRandomName(gameId)
+                while (forwardName in usedNames) {
+                    val newName = generateRandomName(gameId)
+                    forwardName = newName.first
+                    forwardNationality = newName.second
+                }
+                usedNames.add(forwardName)
+
+                val forwardNumber = getAvailableNumber("Forward")
+                usedShirtNumbers.add(forwardNumber)
+
+                players.add(
+                    Player(
+                        teamId = teamId,
+                        name = forwardName,
+                        nationality = forwardNationality,
+                        position = "Forward",
+                        shirtNumber = forwardNumber,
+                        skill = if (isFirstTeam) (65..90).random() else (55..75).random()
+                    )
+                )
+            }
+        }
+
+        // İlk 11'i oluştur
+        createTeam(isFirstTeam = true)
+        
+        // Yedek 11'i oluştur
+        createTeam(isFirstTeam = false)
+
+        // 3 ekstra oyuncu ekle
+        // 1 kaleci
+        var (extraGkName, extraGkNationality) = generateRandomName(gameId)
+        while (extraGkName in usedNames) {
+            val newName = generateRandomName(gameId)
+            extraGkName = newName.first
+            extraGkNationality = newName.second
+        }
+        usedNames.add(extraGkName)
+
         var shirtNumber = (1..99).random()
+        while (shirtNumber in usedShirtNumbers) {
+            shirtNumber = (1..99).random()
+        }
         usedShirtNumbers.add(shirtNumber)
 
         players.add(
             Player(
                 teamId = teamId,
-                name = goalkeeperName,
-                nationality = goalkeeperNationality,
+                name = extraGkName,
+                nationality = extraGkNationality,
                 position = "Goalkeeper",
                 shirtNumber = shirtNumber,
-                skill = (60..90).random()
+                skill = (55..75).random()
             )
         )
 
-        // Defans oyuncuları
-        repeat(defenders) {
-            val (defenderName, defenderNationality) = generateRandomName()
+        // 2 random pozisyon oyuncusu
+        repeat(2) {
+            val position = listOf("Defender", "Midfielder", "Forward").random()
+            var (extraPlayerName, extraPlayerNationality) = generateRandomName(gameId)
+            while (extraPlayerName in usedNames) {
+                val newName = generateRandomName(gameId)
+                extraPlayerName = newName.first
+                extraPlayerNationality = newName.second
+            }
+            usedNames.add(extraPlayerName)
+
             do {
                 shirtNumber = (1..99).random()
             } while (shirtNumber in usedShirtNumbers)
@@ -735,51 +878,11 @@ fun NewGameScreen(
             players.add(
                 Player(
                     teamId = teamId,
-                    name = defenderName,
-                    nationality = defenderNationality,
-                    position = "Defender",
+                    name = extraPlayerName,
+                    nationality = extraPlayerNationality,
+                    position = position,
                     shirtNumber = shirtNumber,
-                    skill = (60..90).random()
-                )
-            )
-        }
-
-        // Orta saha oyuncuları
-        repeat(midfielders) {
-            val (midfielderName, midfielderNationality) = generateRandomName()
-            do {
-                shirtNumber = (1..99).random()
-            } while (shirtNumber in usedShirtNumbers)
-            usedShirtNumbers.add(shirtNumber)
-
-            players.add(
-                Player(
-                    teamId = teamId,
-                    name = midfielderName,
-                    nationality = midfielderNationality,
-                    position = "Midfielder",
-                    shirtNumber = shirtNumber,
-                    skill = (60..90).random()
-                )
-            )
-        }
-
-        // Forvet oyuncuları
-        repeat(forwards) {
-            val (forwardName, forwardNationality) = generateRandomName()
-            do {
-                shirtNumber = (1..99).random()
-            } while (shirtNumber in usedShirtNumbers)
-            usedShirtNumbers.add(shirtNumber)
-
-            players.add(
-                Player(
-                    teamId = teamId,
-                    name = forwardName,
-                    nationality = forwardNationality,
-                    position = "Forward",
-                    shirtNumber = shirtNumber,
-                    skill = (60..90).random()
+                    skill = (55..75).random()
                 )
             )
         }
@@ -897,9 +1000,8 @@ fun NewGameScreen(
 
             // Her takım için menajer ve oyuncuları oluştur
             teamIds.forEach { teamId ->
-                // Önce menajer oluştur
-                val (managerName, managerNationality) = generateRandomName()
-                val formation = formations.random()  // Formasyonu burada seç
+                val (managerName, managerNationality) = generateRandomName(gameId)
+                val formation = formations.random()
                 val manager = Manager(
                     name = managerName,
                     teamId = teamId,
@@ -908,8 +1010,7 @@ fun NewGameScreen(
                 )
                 managerDao.insertManager(manager)
 
-                // Oyuncuları menajerin formasyonuna göre oluştur
-                val players = generatePlayers(teamId, formation)  // Seçilen formasyonu kullan
+                val players = generatePlayers(gameId, teamId, formation)
                 players.forEach { player ->
                     playerDao.insertPlayer(player)
                 }

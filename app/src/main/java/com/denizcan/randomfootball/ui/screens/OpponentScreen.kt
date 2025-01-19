@@ -16,7 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
+import com.denizcan.randomfootball.data.model.Player
 import com.denizcan.randomfootball.ui.components.TopBar
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +42,60 @@ fun OpponentScreen(
     }
     val manager = managerDao.getManagerByTeamId(opponentId).collectAsState(initial = null)
     val players = playerDao.getPlayersByTeamId(opponentId).collectAsState(initial = emptyList())
+
+    // En iyi 11'i belirle
+    val bestEleven = remember(players.value, manager.value?.formation) {
+        manager.value?.let { currentManager ->
+            val formationRows = currentManager.formation.split("-").map { it.toInt() }
+            
+            buildList {
+                // En iyi kaleci
+                players.value
+                    .filter { it.position == "Goalkeeper" }
+                    .sortedWith(
+                        compareByDescending<Player> { it.skill }
+                            .thenBy { it.shirtNumber }
+                    )
+                    .firstOrNull()?.let { add(it) }
+
+                // En iyi defanslar
+                val defenders = players.value
+                    .filter { it.position == "Defender" }
+                    .sortedWith(
+                        compareByDescending<Player> { it.skill }
+                            .thenBy { it.shirtNumber }
+                    )
+                    .take(formationRows[0].coerceAtMost(
+                        players.value.count { it.position == "Defender" }
+                    ))
+                addAll(defenders)
+
+                // En iyi orta sahalar
+                val midfielders = players.value
+                    .filter { it.position == "Midfielder" }
+                    .sortedWith(
+                        compareByDescending<Player> { it.skill }
+                            .thenBy { it.shirtNumber }
+                    )
+                    .take(formationRows[1].coerceAtMost(
+                        players.value.count { it.position == "Midfielder" }
+                    ))
+                addAll(midfielders)
+
+                // En iyi forvetler
+                val forwards = players.value
+                    .filter { it.position == "Forward" }
+                    .sortedWith(
+                        compareByDescending<Player> { it.skill }
+                            .thenBy { it.shirtNumber }
+                    )
+                    .take(formationRows[2].coerceAtMost(
+                        players.value.count { it.position == "Forward" }
+                    ))
+                addAll(forwards)
+            }
+        } ?: emptyList()
+    }
 
     Scaffold(
         topBar = {
@@ -88,10 +144,10 @@ fun OpponentScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     val positionPlayers = when(index) {
-                                        0 -> players.value.filter { it.position == "Goalkeeper" }
-                                        1 -> players.value.filter { it.position == "Defender" }.take(playerCount)
-                                        2 -> players.value.filter { it.position == "Midfielder" }.take(playerCount)
-                                        3 -> players.value.filter { it.position == "Forward" }.take(playerCount)
+                                        0 -> bestEleven.filter { it.position == "Goalkeeper" }
+                                        1 -> bestEleven.filter { it.position == "Defender" }
+                                        2 -> bestEleven.filter { it.position == "Midfielder" }
+                                        3 -> bestEleven.filter { it.position == "Forward" }
                                         else -> emptyList()
                                     }
 

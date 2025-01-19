@@ -11,15 +11,15 @@ import com.denizcan.randomfootball.data.model.*
 
 @Database(
     entities = [
-        Game::class, 
-        League::class, 
-        Team::class, 
-        Manager::class, 
-        Player::class, 
+        Game::class,
+        League::class,
+        Team::class,
+        Manager::class,
+        Player::class,
         Fixture::class,
         LeagueTable::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -43,8 +43,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "football_database"
                 )
-                .fallbackToDestructiveMigration()
-                .build()
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
