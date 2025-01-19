@@ -2,7 +2,6 @@ package com.denizcan.randomfootball.data.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.PrimaryKey
 import androidx.room.Index
 
 @Entity(
@@ -11,15 +10,21 @@ import androidx.room.Index
         ForeignKey(
             entity = Player::class,
             parentColumns = ["playerId"],
-            childColumns = ["playerId"]
+            childColumns = ["playerId"],
+            onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = Game::class,
             parentColumns = ["gameId"],
-            childColumns = ["gameId"]
+            childColumns = ["gameId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    primaryKeys = ["playerId", "gameId"]
+    primaryKeys = ["playerId", "gameId"],
+    indices = [
+        Index(value = ["playerId"]),
+        Index(value = ["gameId"])
+    ]
 )
 data class PlayerStats(
     val playerId: Long,

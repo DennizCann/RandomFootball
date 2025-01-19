@@ -20,7 +20,7 @@ import com.denizcan.randomfootball.data.model.*
         LeagueTable::class,
         PlayerStats::class
     ],
-    version = 17,
+    version = 20,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -21,14 +21,17 @@ import androidx.room.Index
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("teamId"), Index("gameId")]
+    indices = [
+        Index(value = ["teamId"], unique = true),
+        Index(value = ["gameId"])
+    ]
 )
 data class Manager(
     @PrimaryKey(autoGenerate = true)
     val managerId: Long = 0,
-    val name: String,
     val teamId: Long,
     val gameId: Long,
-    val formation: String = "4-4-2",
-    val nationality: String
+    val name: String,
+    val nationality: String,
+    val formation: String = "4-4-2"
 )
