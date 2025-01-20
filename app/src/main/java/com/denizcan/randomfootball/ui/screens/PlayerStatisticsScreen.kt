@@ -133,35 +133,35 @@ fun PlayerStatisticsScreen(
                                     fontSize = 12.sp
                                 )
                             }
-                            
+
                             // Maç sayısı
                             Text(
                                 text = (playerWithStats.stats?.appearances ?: 0).toString(),
                                 modifier = Modifier.weight(0.5f),
                                 textAlign = TextAlign.Center
                             )
-                            
+
                             // Gol sayısı
                             Text(
                                 text = (playerWithStats.stats?.goals ?: 0).toString(),
                                 modifier = Modifier.weight(0.5f),
                                 textAlign = TextAlign.Center
                             )
-                            
+
                             // Asist sayısı
                             Text(
                                 text = (playerWithStats.stats?.assists ?: 0).toString(),
                                 modifier = Modifier.weight(0.5f),
                                 textAlign = TextAlign.Center
                             )
-                            
+
                             // Clean sheet sayısı
                             Text(
                                 text = (playerWithStats.stats?.cleanSheets ?: 0).toString(),
                                 modifier = Modifier.weight(0.5f),
                                 textAlign = TextAlign.Center
                             )
-                            
+
                             // Kartlar
                             Row(
                                 modifier = Modifier.weight(1f),

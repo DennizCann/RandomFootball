@@ -30,14 +30,14 @@ fun StatisticsScreen(
     val database = remember { AppDatabase.getDatabase(context) }
     val leagueDao = remember { database.leagueDao() }
     val teamDao = remember { database.teamDao() }
-    
+
     val team = teamDao.getTeamById(gameId).collectAsState(initial = null)
     val league = remember(team.value?.leagueId) {
-        team.value?.let { 
+        team.value?.let {
             leagueDao.getLeagueById(it.leagueId)
         } ?: flowOf(null)
     }.collectAsState(initial = null)
-    
+
     val leagues = remember(league.value?.gameId) {
         league.value?.let {
             leagueDao.getLeaguesByGameId(it.gameId)

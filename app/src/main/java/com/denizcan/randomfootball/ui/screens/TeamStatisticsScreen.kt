@@ -28,7 +28,7 @@ fun TeamStatisticsScreen(
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
     val teamDao = remember { database.teamDao() }
-    
+
     // Lige ait takımları al
     val teams = teamDao.getTeamsByLeagueId(leagueId).collectAsState(initial = emptyList())
 

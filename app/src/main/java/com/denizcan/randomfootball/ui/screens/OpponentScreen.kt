@@ -37,7 +37,7 @@ fun OpponentScreen(
     val teamColors = remember(team.value) {
         team.value?.let {
             Color(android.graphics.Color.parseColor(it.primaryColor)) to
-            Color(android.graphics.Color.parseColor(it.secondaryColor))
+                    Color(android.graphics.Color.parseColor(it.secondaryColor))
         } ?: (Color.White to Color.Black)
     }
     val manager = managerDao.getManagerByTeamId(opponentId).collectAsState(initial = null)
@@ -47,7 +47,7 @@ fun OpponentScreen(
     val bestEleven = remember(players.value, manager.value?.formation) {
         manager.value?.let { currentManager ->
             val formationRows = currentManager.formation.split("-").map { it.toInt() }
-            
+
             buildList {
                 // En iyi kaleci
                 players.value
@@ -203,7 +203,7 @@ fun OpponentScreen(
                                     color = Color.Gray
                                 )
                             }
-                            
+
                             Text(
                                 text = "#${player.shirtNumber}",
                                 fontSize = 16.sp,

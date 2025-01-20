@@ -633,7 +633,7 @@ fun NewGameScreen(
     fun generateRandomName(gameId: Long): Pair<String, String> {
         val selectedNationality = topFootballCountries.random()
         val (nameList, surnameList) = namesByNationality[selectedNationality]!!
-        
+
         val firstName = nameList.random()
         val lastName = surnameList.random()
 
@@ -794,7 +794,7 @@ fun NewGameScreen(
 
         // İlk 11'i oluştur
         createTeam(isFirstTeam = true)
-        
+
         // Yedek 11'i oluştur
         createTeam(isFirstTeam = false)
 
@@ -930,7 +930,7 @@ fun NewGameScreen(
                 usedManagerNames.add(managerName)
 
                 val formation = formations.random()
-                
+
                 val manager = Manager(
                     name = managerName,
                     teamId = teamId, // Artık gerçek teamId'yi kullanabiliriz

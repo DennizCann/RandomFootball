@@ -98,7 +98,7 @@ fun CreateManagerScreen(
                     if (managerName.isNotBlank() && selectedNationality.isNotBlank()) {
                         scope.launch {
                             val currentManager = managerDao.getManagerByTeamIdSync(teamId)
-                            
+
                             if (currentManager != null) {
                                 // Mevcut menajeri güncelle
                                 val updatedManager = currentManager.copy(
@@ -118,10 +118,10 @@ fun CreateManagerScreen(
                                 )
                                 managerDao.insertManager(newManager)
                             }
-                            
+
                             // Game tablosunu güncelle
                             gameDao.updateSelectedTeam(gameId, teamId)
-                            
+
                             onDashboardNavigate()
                         }
                     }

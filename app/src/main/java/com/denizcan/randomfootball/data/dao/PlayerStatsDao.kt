@@ -82,9 +82,7 @@ interface PlayerStatsDao {
 
     @Transaction
     suspend fun createStatsIfNotExists(playerId: Long, gameId: Long) {
-        Log.d("PlayerStatsDao", "Checking stats for player $playerId in game $gameId")
         if (!hasStats(playerId, gameId)) {
-            Log.d("PlayerStatsDao", "Creating new stats for player $playerId")
             val initialStats = PlayerStats(
                 playerId = playerId,
                 gameId = gameId,
@@ -96,52 +94,67 @@ interface PlayerStatsDao {
                 redCards = 0
             )
             insertInitialStats(initialStats)
-            Log.d("PlayerStatsDao", "Initial stats created successfully")
+            Log.d("PlayerStatsDao", "Created initial stats for player $playerId in game $gameId")
         }
     }
 
-    // İstatistikleri güncelle
+    // İstatistikleri güncelle - Sorguyu basitleştirdik
     @Query("""
         UPDATE player_stats 
-        SET goals = COALESCE(goals, 0) + :goals,
-            assists = COALESCE(assists, 0) + :assists
+        SET goals = goals + :goals,
+            assists = assists + :assists
         WHERE playerId = :playerId AND gameId = :gameId
     """)
     suspend fun updateMatchStats(playerId: Long, gameId: Long, goals: Int, assists: Int)
 
-    // Maça çıkma sayısını artır
+    // Maça çıkma sayısını artır - Sorguyu basitleştirdik
     @Query("""
         UPDATE player_stats 
-        SET appearances = COALESCE(appearances, 0) + 1
+        SET appearances = appearances + 1
         WHERE playerId = :playerId AND gameId = :gameId
     """)
     suspend fun incrementAppearance(playerId: Long, gameId: Long)
 
-    // Oyuncuları ve istatistiklerini birlikte al
+    // Clean sheet sayısını artır - Sorguyu basitleştirdik
+    @Query("""
+        UPDATE player_stats 
+        SET cleanSheets = cleanSheets + 1
+        WHERE playerId = :playerId AND gameId = :gameId
+    """)
+    suspend fun updateCleanSheet(playerId: Long, gameId: Long)
+
+    // Oyuncuları ve istatistiklerini birlikte al - Sorguyu güncelledik
     @Transaction
     @Query("""
-        SELECT p.*, ps.*
+        SELECT p.*, 
+               COALESCE(ps.goals, 0) as goals,
+               COALESCE(ps.assists, 0) as assists,
+               COALESCE(ps.appearances, 0) as appearances,
+               COALESCE(ps.cleanSheets, 0) as cleanSheets,
+               COALESCE(ps.yellowCards, 0) as yellowCards,
+               COALESCE(ps.redCards, 0) as redCards
         FROM players p
-        LEFT JOIN player_stats ps ON p.playerId = ps.playerId AND ps.gameId = :gameId
+        LEFT JOIN (
+            SELECT * FROM player_stats WHERE gameId = :gameId
+        ) ps ON p.playerId = ps.playerId
         WHERE p.teamId = :teamId
         ORDER BY COALESCE(ps.goals, 0) DESC, COALESCE(ps.assists, 0) DESC
     """)
     fun getPlayerStatsWithPlayers(teamId: Long, gameId: Long): Flow<List<PlayerWithStats>>
 
-    // Clean sheet sayısını artır
+    // Oyuncuların istatistiklerini kontrol etmek için yeni bir sorgu ekleyelim
     @Query("""
-        UPDATE player_stats 
-        SET cleanSheets = COALESCE(cleanSheets, 0) + 1
+        SELECT * FROM player_stats 
         WHERE playerId = :playerId AND gameId = :gameId
     """)
-    suspend fun updateCleanSheet(playerId: Long, gameId: Long)
+    suspend fun getPlayerStatsDirectly(playerId: Long, gameId: Long): PlayerStats?
 
+    // Debug için yeni bir sorgu ekleyelim
     @Query("""
-        UPDATE player_stats 
-        SET appearances = appearances + 1 
-        WHERE playerId = :playerId AND gameId = :gameId
+        SELECT COUNT(*) FROM player_stats 
+        WHERE gameId = :gameId AND (goals > 0 OR assists > 0 OR appearances > 0)
     """)
-    suspend fun updateAppearances(playerId: Long, gameId: Long)
+    suspend fun getActiveStatsCount(gameId: Long): Int
 
     data class PlayerWithStats(
         @Embedded val player: Player,
@@ -150,6 +163,14 @@ interface PlayerStatsDao {
             entityColumn = "playerId",
             entity = PlayerStats::class
         )
-        val stats: PlayerStats?
-    )
+        val stats: PlayerStats? = null
+    ) {
+        // Güvenli erişim için yardımcı özellikler ekleyelim
+        val appearances: Int get() = stats?.appearances ?: 0
+        val goals: Int get() = stats?.goals ?: 0
+        val assists: Int get() = stats?.assists ?: 0
+        val cleanSheets: Int get() = stats?.cleanSheets ?: 0
+        val yellowCards: Int get() = stats?.yellowCards ?: 0
+        val redCards: Int get() = stats?.redCards ?: 0
+    }
 } 

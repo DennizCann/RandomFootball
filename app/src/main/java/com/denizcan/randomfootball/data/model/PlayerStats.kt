@@ -35,4 +35,11 @@ data class PlayerStats(
     val cleanSheets: Int = 0,
     val yellowCards: Int = 0,
     val redCards: Int = 0
-)
+) {
+    companion object {
+        fun empty(playerId: Long = 0, gameId: Long = 0) = PlayerStats(
+            playerId = playerId,
+            gameId = gameId
+        )
+    }
+}

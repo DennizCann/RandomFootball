@@ -130,7 +130,7 @@ fun TeamManagementScreen(
                                         showFormationDropdown = false
                                     },
                                     colors = MenuDefaults.itemColors(
-                                        textColor = if (formation == currentManager.formation) 
+                                        textColor = if (formation == currentManager.formation)
                                             Color(0xFF4CAF50) else Color.Black
                                     )
                                 )
@@ -140,7 +140,7 @@ fun TeamManagementScreen(
 
                     // En iyi 11'i belirle
                     val formationRows = currentManager.formation.split("-").map { it.toInt() }
-                    
+
                     val bestEleven = buildList {
                         // En iyi kaleci
                         players.value
@@ -288,10 +288,10 @@ fun TeamManagementScreen(
                             }
 
                             // Yedek oyuncuları listele (ilk 11'de olmayan oyuncular)
-                            val substitutes = players.value.filter { player -> 
-                                player !in bestEleven 
+                            val substitutes = players.value.filter { player ->
+                                player !in bestEleven
                             }.sortedWith(
-                                compareBy<Player> { 
+                                compareBy<Player> {
                                     when(it.position) {
                                         "Goalkeeper" -> 1
                                         "Defender" -> 2
@@ -300,7 +300,7 @@ fun TeamManagementScreen(
                                         else -> 5
                                     }
                                 }.thenByDescending { it.skill }
-                                 .thenBy { it.shirtNumber }
+                                    .thenBy { it.shirtNumber }
                             )
 
                             items(substitutes) { player ->
