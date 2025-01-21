@@ -35,7 +35,6 @@ fun DashboardScreen(
     onTransfersClick: (Long) -> Unit,
     onStatisticsClick: (Long) -> Unit,
     onNextMatchClick: (Long) -> Unit,
-    onLeagueTableDetailClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }

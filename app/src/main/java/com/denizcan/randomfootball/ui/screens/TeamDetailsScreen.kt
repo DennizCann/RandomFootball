@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.flowOf
 @Composable
 fun TeamDetailsScreen(
     teamId: Long,
-    gameId: Long,
     onBackClick: () -> Unit,
     onTeamSelected: (Long) -> Unit
 ) {

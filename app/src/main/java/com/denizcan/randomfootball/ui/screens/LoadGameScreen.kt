@@ -38,7 +38,6 @@ fun LoadGameScreen(
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
     val gameDao = remember { database.gameDao() }
-    val managerDao = remember { database.managerDao() }
     val games = gameDao.getAllGames().collectAsState(initial = emptyList())
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     val scope = rememberCoroutineScope()

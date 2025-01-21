@@ -21,7 +21,6 @@ import com.denizcan.randomfootball.ui.components.TopBar
 @Composable
 fun TeamStatisticsScreen(
     leagueId: Long,
-    gameId: Long,
     onBackClick: () -> Unit,
     onTeamClick: (Long) -> Unit
 ) {

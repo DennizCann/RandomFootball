@@ -150,7 +150,6 @@ fun NavGraph(navController: NavHostController) {
             val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
             TeamDetailsScreen(
                 teamId = teamId,
-                gameId = gameId,
                 onBackClick = { navController.popBackStack() },
                 onTeamSelected = { selectedTeamId ->
                     navController.navigate(Screen.CreateManager.createRoute(selectedTeamId, gameId))
@@ -195,10 +194,7 @@ fun NavGraph(navController: NavHostController) {
                 onLeagueTableClick = { navController.navigate(Screen.LeagueTable.createRoute(it)) },
                 onTransfersClick = { navController.navigate(Screen.Transfers.createRoute(it)) },
                 onStatisticsClick = { navController.navigate(Screen.Statistics.createRoute(it)) },
-                onNextMatchClick = { navController.navigate(Screen.NextMatch.createRoute(it)) },
-                onLeagueTableDetailClick = { leagueId ->
-                    navController.navigate(Screen.LeagueTableDetail.createRoute(leagueId))
-                }
+                onNextMatchClick = { navController.navigate(Screen.NextMatch.createRoute(it)) }
             )
         }
 
@@ -263,7 +259,6 @@ fun NavGraph(navController: NavHostController) {
             val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
             TeamStatisticsScreen(
                 leagueId = leagueId,
-                gameId = gameId,
                 onBackClick = { navController.popBackStack() },
                 onTeamClick = { teamId ->
                     navController.navigate(Screen.PlayerStatistics.createRoute(teamId, gameId))
@@ -337,7 +332,6 @@ fun NavGraph(navController: NavHostController) {
             val teamId = backStackEntry.arguments?.getLong("teamId") ?: return@composable
             val opponentId = backStackEntry.arguments?.getLong("opponentId") ?: return@composable
             OpponentScreen(
-                teamId = teamId,
                 opponentId = opponentId,
                 onBackClick = { navController.popBackStack() }
             )

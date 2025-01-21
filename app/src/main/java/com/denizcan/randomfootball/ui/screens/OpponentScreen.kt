@@ -25,7 +25,6 @@ import com.denizcan.randomfootball.util.TacticalBoard
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OpponentScreen(
-    teamId: Long,
     opponentId: Long,
     onBackClick: () -> Unit
 ) {

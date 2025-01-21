@@ -26,7 +26,6 @@ fun PlayerStatisticsScreen(
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
-    val playerDao = remember { database.playerDao() }
     val playerStatsDao = remember { database.playerStatsDao() }
     val teamDao = remember { database.teamDao() }
 
