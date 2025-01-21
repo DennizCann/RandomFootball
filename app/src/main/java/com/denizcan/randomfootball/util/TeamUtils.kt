@@ -53,4 +53,10 @@ object TeamUtils {
             addAll(forwards)
         }
     }
+
+    // selectFirstEleven fonksiyonu getBestEleven ile aynı işi yapıyor, 
+    // bu yüzden getBestEleven'ı kullanabiliriz
+    fun selectFirstEleven(players: List<Player>, formation: String): List<Player> {
+        return getBestEleven(players, formation)
+    }
 } 

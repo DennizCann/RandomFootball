@@ -37,17 +37,18 @@ import com.denizcan.randomfootball.data.model.Fixture
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.denizcan.randomfootball.util.TeamUtils
 
 // Maç fazlarını temsil eden enum
 private enum class MatchPhase {
-    NOT_STARTED,      // Maç başlamadı
-    FIRST_PHASE,      // İlk faz (Hücum-Savunma karşılaştırması)
-    SECOND_PHASE,     // 15. dakika
-    THIRD_PHASE,      // 30. dakika
-    FOURTH_PHASE,     // 45. dakika
-    FIFTH_PHASE,      // 60. dakika
-    SIXTH_PHASE,      // 75. dakika
-    MATCH_ENDED       // 90. dakika - Maç bitti
+    NOT_STARTED,      // 0. dakika - Maç başlamadı
+    FIRST_PHASE,      // 15. dakika
+    SECOND_PHASE,     // 30. dakika
+    THIRD_PHASE,      // 45. dakika
+    FOURTH_PHASE,     // 60. dakika
+    FIFTH_PHASE,      // 75. dakika
+    SIXTH_PHASE,      // 90. dakika
+    MATCH_ENDED       // 95. dakika - Maç bitti
 }
 
 // Takım istatistiklerini tutan data class
@@ -188,13 +189,13 @@ fun PlayMatchScreen(
     // İlk 11'leri seç
     val homeFirstEleven = remember(homePlayers?.value, homeTeamFormation) {
         homePlayers?.value?.let { players ->
-            selectFirstEleven(players, homeTeamFormation)
+            TeamUtils.selectFirstEleven(players, homeTeamFormation)
         } ?: emptyList()
     }
 
     val awayFirstEleven = remember(awayPlayers?.value, awayTeamFormation) {
         awayPlayers?.value?.let { players ->
-            selectFirstEleven(players, awayTeamFormation)
+            TeamUtils.selectFirstEleven(players, awayTeamFormation)
         } ?: emptyList()
     }
 
@@ -386,8 +387,8 @@ fun PlayMatchScreen(
             val awayTeamPlayers = database.playerDao().getPlayersByTeamId(weekFixture.awayTeamId).first()
 
             // Formasyonları al ve ilk 11'leri seç
-            val homeFirstEleven = selectFirstEleven(homeTeamPlayers, homeManager.formation)
-            val awayFirstEleven = selectFirstEleven(awayTeamPlayers, awayManager.formation)
+            val homeFirstEleven = TeamUtils.selectFirstEleven(homeTeamPlayers, homeManager.formation)
+            val awayFirstEleven = TeamUtils.selectFirstEleven(awayTeamPlayers, awayManager.formation)
 
             // İlk 11'deki oyuncuların appearances sayısını artır
             homeFirstEleven.forEach { player ->
@@ -510,7 +511,7 @@ fun PlayMatchScreen(
             ?: throw Exception("Manager not found")
 
         val scoringTeamPlayers = playerDao.getPlayersByTeamId(scoringTeam.teamId).first()
-        val firstEleven = selectFirstEleven(scoringTeamPlayers, manager.formation)
+        val firstEleven = TeamUtils.selectFirstEleven(scoringTeamPlayers, manager.formation)
 
         // Gol atan oyuncuyu seç
         val scorer = selectScorer(firstEleven)
@@ -677,47 +678,47 @@ fun PlayMatchScreen(
         when (currentPhase) {
             MatchPhase.NOT_STARTED -> {
                 currentPhase = MatchPhase.FIRST_PHASE
-                currentMinute = 0
+                currentMinute = 15
             }
 
             MatchPhase.FIRST_PHASE -> {
                 currentPhase = MatchPhase.SECOND_PHASE
-                currentMinute = 15
+                currentMinute = 30
                 currentTeamWithBall = "home"
                 matchFunctions.simulateRandomPhase?.invoke("home")
             }
 
             MatchPhase.SECOND_PHASE -> {
                 currentPhase = MatchPhase.THIRD_PHASE
-                currentMinute = 30
+                currentMinute = 45
                 currentTeamWithBall = "home"
                 matchFunctions.simulateRandomPhase?.invoke("home")
             }
 
             MatchPhase.THIRD_PHASE -> {
                 currentPhase = MatchPhase.FOURTH_PHASE
-                currentMinute = 45
+                currentMinute = 60
                 currentTeamWithBall = "home"
                 matchFunctions.simulateRandomPhase?.invoke("home")
             }
 
             MatchPhase.FOURTH_PHASE -> {
                 currentPhase = MatchPhase.FIFTH_PHASE
-                currentMinute = 60
+                currentMinute = 75
                 currentTeamWithBall = "home"
                 matchFunctions.simulateRandomPhase?.invoke("home")
             }
 
             MatchPhase.FIFTH_PHASE -> {
                 currentPhase = MatchPhase.SIXTH_PHASE
-                currentMinute = 75
+                currentMinute = 90
                 currentTeamWithBall = "home"
                 matchFunctions.simulateRandomPhase?.invoke("home")
             }
 
             MatchPhase.SIXTH_PHASE -> {
                 currentPhase = MatchPhase.MATCH_ENDED
-                currentMinute = 90
+                currentMinute = 95
                 matchFunctions.endMatch?.invoke()
             }
 
