@@ -37,19 +37,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
-
-// Formasyonlar listesi
-private val formations = listOf(
-    "3-4-3",
-    "3-5-2",
-    "4-2-4",
-    "4-3-3",
-    "4-4-2",
-    "4-5-1",
-    "5-2-3",
-    "5-3-2",
-    "5-4-1"
-)
+import com.denizcan.randomfootball.util.TeamUtils
+import com.denizcan.randomfootball.util.Constants
+import com.denizcan.randomfootball.util.TacticalBoard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,12 +106,11 @@ fun TeamManagementScreen(
                                 .fillMaxWidth(0.9f)
                                 .background(Color.White)
                         ) {
-                            formations.forEach { formation ->
+                            Constants.FORMATIONS.forEach { formation ->
                                 DropdownMenuItem(
                                     text = { Text(formation) },
                                     onClick = {
                                         scope.launch {
-                                            // Menajerin formasyonunu güncelle
                                             managerDao.updateManagerFormation(
                                                 managerId = currentManager.managerId,
                                                 formation = formation
@@ -139,53 +128,8 @@ fun TeamManagementScreen(
                     }
 
                     // En iyi 11'i belirle
-                    val formationRows = currentManager.formation.split("-").map { it.toInt() }
-
-                    val bestEleven = buildList {
-                        // En iyi kaleci
-                        players.value
-                            .filter { it.position == "Goalkeeper" }
-                            .sortedWith(
-                                compareByDescending<Player> { it.skill }
-                                    .thenBy { it.shirtNumber }
-                            )
-                            .firstOrNull()?.let { add(it) }
-
-                        // En iyi defanslar
-                        val defenders = players.value
-                            .filter { it.position == "Defender" }
-                            .sortedWith(
-                                compareByDescending<Player> { it.skill }
-                                    .thenBy { it.shirtNumber }
-                            )
-                            .take(formationRows[0].coerceAtMost(
-                                players.value.count { it.position == "Defender" }
-                            ))
-                        addAll(defenders)
-
-                        // En iyi orta sahalar
-                        val midfielders = players.value
-                            .filter { it.position == "Midfielder" }
-                            .sortedWith(
-                                compareByDescending<Player> { it.skill }
-                                    .thenBy { it.shirtNumber }
-                            )
-                            .take(formationRows[1].coerceAtMost(
-                                players.value.count { it.position == "Midfielder" }
-                            ))
-                        addAll(midfielders)
-
-                        // En iyi forvetler
-                        val forwards = players.value
-                            .filter { it.position == "Forward" }
-                            .sortedWith(
-                                compareByDescending<Player> { it.skill }
-                                    .thenBy { it.shirtNumber }
-                            )
-                            .take(formationRows[2].coerceAtMost(
-                                players.value.count { it.position == "Forward" }
-                            ))
-                        addAll(forwards)
+                    val bestEleven = remember(players.value, currentManager.formation) {
+                        TeamUtils.getBestEleven(players.value, currentManager.formation)
                     }
 
                     // Eğer bestEleven listesi boşsa veya eksikse, taktik tahtasını gösterme
@@ -356,84 +300,5 @@ fun TeamManagementScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun TacticalBoard(
-    players: List<Player>,
-    formation: String,
-    primaryColor: Color,
-    secondaryColor: Color,
-    modifier: Modifier = Modifier
-) {
-    val formationRows = formation.split("-").map { it.toInt() }
-    val allRows = listOf(1) + formationRows // [1, 4, 3, 3] gibi
-
-    Card(
-        modifier = modifier.padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(2.dp, Color.White.copy(alpha = 0.7f))
-                .padding(2.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                allRows.forEachIndexed { index, playerCount ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val positionPlayers = when(index) {
-                            0 -> players.filter { it.position == "Goalkeeper" }
-                            1 -> players.filter { it.position == "Defender" }
-                            2 -> players.filter { it.position == "Midfielder" }
-                            3 -> players.filter { it.position == "Forward" }
-                            else -> emptyList()
-                        }
-
-                        positionPlayers.forEach { player ->
-                            PlayerCircle(
-                                number = player.shirtNumber,
-                                primaryColor = primaryColor,
-                                secondaryColor = secondaryColor
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerCircle(
-    number: Int,
-    primaryColor: Color,
-    secondaryColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(32.dp)
-            .background(primaryColor, CircleShape)
-            .border(1.dp, secondaryColor, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = number.toString(),
-            color = secondaryColor,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 } 

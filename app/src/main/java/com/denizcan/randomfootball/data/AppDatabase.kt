@@ -23,7 +23,9 @@ import com.denizcan.randomfootball.data.model.*
     version = 20,
     exportSchema = false
 )
+
 @TypeConverters(Converters::class)
+
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao
     abstract fun leagueDao(): LeagueDao

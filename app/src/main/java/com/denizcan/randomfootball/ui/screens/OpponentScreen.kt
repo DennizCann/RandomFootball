@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.data.model.Player
 import com.denizcan.randomfootball.ui.components.TopBar
+import com.denizcan.randomfootball.util.TeamUtils
+import com.denizcan.randomfootball.util.TacticalBoard
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,54 +48,7 @@ fun OpponentScreen(
     // En iyi 11'i belirle
     val bestEleven = remember(players.value, manager.value?.formation) {
         manager.value?.let { currentManager ->
-            val formationRows = currentManager.formation.split("-").map { it.toInt() }
-
-            buildList {
-                // En iyi kaleci
-                players.value
-                    .filter { it.position == "Goalkeeper" }
-                    .sortedWith(
-                        compareByDescending<Player> { it.skill }
-                            .thenBy { it.shirtNumber }
-                    )
-                    .firstOrNull()?.let { add(it) }
-
-                // En iyi defanslar
-                val defenders = players.value
-                    .filter { it.position == "Defender" }
-                    .sortedWith(
-                        compareByDescending<Player> { it.skill }
-                            .thenBy { it.shirtNumber }
-                    )
-                    .take(formationRows[0].coerceAtMost(
-                        players.value.count { it.position == "Defender" }
-                    ))
-                addAll(defenders)
-
-                // En iyi orta sahalar
-                val midfielders = players.value
-                    .filter { it.position == "Midfielder" }
-                    .sortedWith(
-                        compareByDescending<Player> { it.skill }
-                            .thenBy { it.shirtNumber }
-                    )
-                    .take(formationRows[1].coerceAtMost(
-                        players.value.count { it.position == "Midfielder" }
-                    ))
-                addAll(midfielders)
-
-                // En iyi forvetler
-                val forwards = players.value
-                    .filter { it.position == "Forward" }
-                    .sortedWith(
-                        compareByDescending<Player> { it.skill }
-                            .thenBy { it.shirtNumber }
-                    )
-                    .take(formationRows[2].coerceAtMost(
-                        players.value.count { it.position == "Forward" }
-                    ))
-                addAll(forwards)
-            }
+            TeamUtils.getBestEleven(players.value, currentManager.formation)
         } ?: emptyList()
     }
 
@@ -115,63 +70,15 @@ fun OpponentScreen(
         ) {
             // Taktik tahtası
             manager.value?.let { currentManager ->
-                Card(
+                TacticalBoard(
+                    players = bestEleven,
+                    formation = currentManager.formation,
+                    primaryColor = teamColors.first,
+                    secondaryColor = teamColors.second,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .border(2.dp, Color.White.copy(alpha = 0.7f))
-                            .padding(2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            val formationRows = currentManager.formation.split("-").map { it.toInt() }
-                            val allRows = listOf(1) + formationRows
-
-                            allRows.forEachIndexed { index, playerCount ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val positionPlayers = when(index) {
-                                        0 -> bestEleven.filter { it.position == "Goalkeeper" }
-                                        1 -> bestEleven.filter { it.position == "Defender" }
-                                        2 -> bestEleven.filter { it.position == "Midfielder" }
-                                        3 -> bestEleven.filter { it.position == "Forward" }
-                                        else -> emptyList()
-                                    }
-
-                                    positionPlayers.forEach { player ->
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .background(teamColors.first, CircleShape)
-                                                .border(1.dp, teamColors.second, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = player.shirtNumber.toString(),
-                                                color = teamColors.second,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                        .height(200.dp)
+                )
             }
 
             // Oyuncu listesi

@@ -37,7 +37,6 @@ import com.denizcan.randomfootball.data.model.Fixture
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.denizcan.randomfootball.utils.MatchUtils
 
 // Maç fazlarını temsil eden enum
 private enum class MatchPhase {
@@ -344,8 +343,8 @@ fun PlayMatchScreen(
             in 0..55 -> players.filter { it.position == "Forward" }  // %55 Forvet
             in 56..85 -> players.filter { it.position == "Midfielder" }  // %30 Orta Saha
             else -> players.filter { it.position == "Defender" }  // %15 Defans
-        }.randomOrNull() ?: players.filter { 
-            it.position != "Goalkeeper" 
+        }.randomOrNull() ?: players.filter {
+            it.position != "Goalkeeper"
         }.random()
     }
 
@@ -518,7 +517,7 @@ fun PlayMatchScreen(
 
         // Gol atan oyuncu için kayıt oluştur ve güncelle
         playerStatsDao.createStatsIfNotExists(scorer.playerId, gameId)
-        
+
         // İstatistikleri güncellemeden önce kontrol et
         val beforeStats = playerStatsDao.getPlayerStatsDirectly(scorer.playerId, gameId)
         Log.d("PlayMatchScreen", """
@@ -527,7 +526,7 @@ fun PlayMatchScreen(
             Assists: ${beforeStats?.assists}
             Appearances: ${beforeStats?.appearances}
         """.trimIndent())
-        
+
         playerStatsDao.updateMatchStats(
             playerId = scorer.playerId,
             gameId = gameId,

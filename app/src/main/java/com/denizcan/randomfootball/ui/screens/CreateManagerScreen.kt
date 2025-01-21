@@ -16,6 +16,7 @@ import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.data.model.Manager
 import com.denizcan.randomfootball.ui.components.TopBar
 import kotlinx.coroutines.launch
+import com.denizcan.randomfootball.util.Constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,10 +33,7 @@ fun CreateManagerScreen(
 
     var managerName by remember { mutableStateOf("") }
     var selectedNationality by remember { mutableStateOf("") }
-    val nationalities = listOf(
-        "Brazil", "Germany", "Italy", "Argentina", "France",
-        "England", "Spain", "Netherlands", "Portugal", "Turkey"
-    )
+    var selectedFormation by remember { mutableStateOf("4-4-2") }
 
     val scope = rememberCoroutineScope()
 
@@ -44,6 +42,7 @@ fun CreateManagerScreen(
         managerDao.getManagerByTeamIdSync(teamId)?.let { manager ->
             managerName = manager.name
             selectedNationality = manager.nationality
+            selectedFormation = manager.formation
         }
     }
 
@@ -86,9 +85,16 @@ fun CreateManagerScreen(
 
             DropdownMenuWithLabel(
                 label = "Nationality",
-                items = nationalities,
+                items = Constants.NATIONALITIES,
                 selectedItem = selectedNationality,
                 onItemSelected = { selectedNationality = it }
+            )
+
+            DropdownMenuWithLabel(
+                label = "Formation",
+                items = Constants.FORMATIONS,
+                selectedItem = selectedFormation,
+                onItemSelected = { selectedFormation = it }
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -103,8 +109,8 @@ fun CreateManagerScreen(
                                 // Mevcut menajeri güncelle
                                 val updatedManager = currentManager.copy(
                                     name = managerName,
-                                    nationality = selectedNationality
-                                    // formation değişmiyor
+                                    nationality = selectedNationality,
+                                    formation = selectedFormation
                                 )
                                 managerDao.updateManager(updatedManager)
                             } else {
@@ -114,7 +120,7 @@ fun CreateManagerScreen(
                                     gameId = gameId,
                                     name = managerName,
                                     nationality = selectedNationality,
-                                    formation = "4-4-2" // Varsayılan diziliş
+                                    formation = selectedFormation
                                 )
                                 managerDao.insertManager(newManager)
                             }
