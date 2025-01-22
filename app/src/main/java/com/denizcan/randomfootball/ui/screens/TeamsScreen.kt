@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.denizcan.randomfootball.data.AppDatabase
 import com.denizcan.randomfootball.ui.components.TopBar
+import com.denizcan.randomfootball.util.TeamUtils
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +31,36 @@ fun TeamsScreen(
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
     val teamDao = remember { database.teamDao() }
+    val playerDao = remember { database.playerDao() }
+    val managerDao = remember { database.managerDao() }
+    
     val teams = teamDao.getTeamsByLeagueId(leagueId).collectAsState(initial = emptyList())
+    
+    // Takım istatistiklerini tutacak state
+    var teamStats by remember { mutableStateOf(mapOf<Long, TeamUtils.TeamStats>()) }
+    
+    // Her takım için istatistikleri hesapla
+    LaunchedEffect(teams.value) {
+        val newStats = mutableMapOf<Long, TeamUtils.TeamStats>()
+        
+        teams.value.forEach { team ->
+            // Takımın oyuncularını al
+            val players = playerDao.getPlayersByTeamId(team.teamId).first()
+            // Takımın menajerini al
+            val manager = managerDao.getManagerById(team.managerId).first()
+            
+            // Menajer varsa formasyon bilgisini kullan, yoksa varsayılan formasyon
+            val formation = manager?.formation ?: "4-4-2"
+            
+            // İlk 11'i seç ve puanları hesapla
+            val firstEleven = TeamUtils.selectFirstEleven(players, formation)
+            val stats = TeamUtils.calculateTeamStats(players, formation)
+            
+            newStats[team.teamId] = stats
+        }
+        
+        teamStats = newStats
+    }
 
     Scaffold(
         topBar = {
@@ -56,50 +87,94 @@ fun TeamsScreen(
                         containerColor = Color.White
                     )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(16.dp)
                     ) {
-                        Text(
-                            text = team.name,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4CAF50)
-                        )
-
+                        // Üst kısım - Takım adı ve renkler
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .background(
-                                        Color(android.graphics.Color.parseColor(team.primaryColor)),
-                                        shape = CircleShape
-                                    )
-                                    .border(
-                                        width = 2.dp,
-                                        color = Color.Black,
-                                        shape = CircleShape
-                                    )
+                            Text(
+                                text = team.name,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4CAF50)
                             )
 
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .background(
-                                        Color(android.graphics.Color.parseColor(team.secondaryColor)),
-                                        shape = CircleShape
-                                    )
-                                    .border(
-                                        width = 2.dp,
-                                        color = Color.Black,
-                                        shape = CircleShape
-                                    )
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(
+                                            Color(android.graphics.Color.parseColor(team.primaryColor)),
+                                            shape = CircleShape
+                                        )
+                                        .border(
+                                            width = 2.dp,
+                                            color = Color.Black,
+                                            shape = CircleShape
+                                        )
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(
+                                            Color(android.graphics.Color.parseColor(team.secondaryColor)),
+                                            shape = CircleShape
+                                        )
+                                        .border(
+                                            width = 2.dp,
+                                            color = Color.Black,
+                                            shape = CircleShape
+                                        )
+                                )
+                            }
+                        }
+
+                        // Alt kısım - Takım istatistikleri
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Attack",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = teamStats[team.teamId]?.attackPoints?.toString() ?: "...",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Defense",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = teamStats[team.teamId]?.defensePoints?.toString() ?: "...",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
+                            }
                         }
                     }
                 }
