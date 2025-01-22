@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.items
 import android.util.Log
+import androidx.compose.ui.zIndex
 import com.denizcan.randomfootball.data.dao.FixtureDao
 import com.denizcan.randomfootball.data.dao.PlayerStatsDao
 import com.denizcan.randomfootball.data.model.Fixture
@@ -701,347 +702,364 @@ fun PlayMatchScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFF4CAF50))
                 .padding(paddingValues)
         ) {
-            // Üst kısım (skor tablosu ve animasyonlar) - yüksekliği azaltıldı
-            Box(
+            // Ana içerik (skor tablosu vs.)
+            Column(
                 modifier = Modifier
-                    .weight(0.65f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .zIndex(0f)  // En altta kalması için
             ) {
-                Column(
+                // Üst kısım (skor tablosu ve animasyonlar) - yüksekliği azaltıldı
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp) // spacing azaltıldı
+                        .weight(0.65f)
+                        .fillMaxWidth()
                 ) {
-                    // Hafta ve dakika bilgisi - font boyutu küçültüldü
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp) // spacing azaltıldı
                     ) {
-                        fixture.value?.let { currentFixture ->
+                        // Hafta ve dakika bilgisi - font boyutu küçültüldü
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            fixture.value?.let { currentFixture ->
+                                Text(
+                                    text = "Week ${currentFixture.week}",
+                                    color = Color.White,
+                                    fontSize = 20.sp, // küçültüldü
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
                             Text(
-                                text = "Week ${currentFixture.week}",
+                                text = "$currentMinute'",
                                 color = Color.White,
                                 fontSize = 20.sp, // küçültüldü
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Text(
-                            text = "$currentMinute'",
-                            color = Color.White,
-                            fontSize = 20.sp, // küçültüldü
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Takımların en iyi 11'lerinin puanlarını hesapla
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
-                    ) {
-                        Row(
+                        // Takımların en iyi 11'lerinin puanlarını hesapla
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
                         ) {
-                            // Ev sahibi takım puanları
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = homeTeam?.value?.name ?: "Home Team",
-                                    color = Color.White,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "Attack",
-                                            color = Color.White,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = homeTeamStats.attackPoints.toString(),
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "Defense",
-                                            color = Color.White,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = homeTeamStats.defensePoints.toString(),
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-
-                            // VS yazısı
-                            Text(
-                                text = "VS",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            // Deplasman takım puanları
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = awayTeam?.value?.name ?: "Away Team",
-                                    color = Color.White,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "Attack",
-                                            color = Color.White,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = awayTeamStats.attackPoints.toString(),
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "Defense",
-                                            color = Color.White,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = awayTeamStats.defensePoints.toString(),
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Maç kartı
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            // Ev sahibi
-                            Text(
-                                text = homeTeam?.value?.name ?: "Home Team",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4CAF50)
-                            )
-
-                            // Skor
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Ev sahibi takım puanları
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = homeTeam?.value?.name ?: "Home Team",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Attack",
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                text = homeTeamStats.attackPoints.toString(),
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Defense",
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                text = homeTeamStats.defensePoints.toString(),
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // VS yazısı
                                 Text(
-                                    text = homeScore.toString(),
-                                    fontSize = 32.sp,
+                                    text = "VS",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                // Deplasman takım puanları
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = awayTeam?.value?.name ?: "Away Team",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Attack",
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                text = awayTeamStats.attackPoints.toString(),
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Defense",
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                text = awayTeamStats.defensePoints.toString(),
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Maç kartı
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                // Ev sahibi
+                                Text(
+                                    text = homeTeam?.value?.name ?: "Home Team",
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF4CAF50)
                                 )
+
+                                // Skor
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = homeScore.toString(),
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF4CAF50)
+                                    )
+                                    Text(
+                                        text = " - ",
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF4CAF50),
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    Text(
+                                        text = awayScore.toString(),
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF4CAF50)
+                                    )
+                                }
+
+                                // Deplasman
                                 Text(
-                                    text = " - ",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF4CAF50),
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-                                Text(
-                                    text = awayScore.toString(),
-                                    fontSize = 32.sp,
+                                    text = awayTeam?.value?.name ?: "Away Team",
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF4CAF50)
                                 )
                             }
+                        }
 
-                            // Deplasman
+                        // Oyna butonu
+                        Button(
+                            onClick = { matchFunctions.simulateMatch?.invoke() },
+                            enabled = !isMatchEnded && !isMatchInProgress,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!isMatchEnded && !isMatchInProgress)
+                                    Color(0xFF388E3C) else Color.Gray
+                            )
+                        ) {
                             Text(
-                                text = awayTeam?.value?.name ?: "Away Team",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4CAF50)
+                                text = when {
+                                    isMatchEnded -> "Match Ended"
+                                    isMatchInProgress -> "Match in Progress..."
+                                    else -> "Play Match"
+                                },
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                    }
-
-                    // Oyna butonu
-                    Button(
-                        onClick = { matchFunctions.simulateMatch?.invoke() },
-                        enabled = !isMatchEnded && !isMatchInProgress,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (!isMatchEnded && !isMatchInProgress)
-                                Color(0xFF388E3C) else Color.Gray
-                        )
-                    ) {
-                        Text(
-                            text = when {
-                                isMatchEnded -> "Match Ended"
-                                isMatchInProgress -> "Match in Progress..."
-                                else -> "Play Match"
-                            },
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
 
-                // Animasyonlar burada kalacak
-                if (showTeamAnimation) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // Takım gol yazısı
-                        Text(
-                            text = when (currentTeamWithBall) {
-                                "home" -> "${homeTeam?.value?.name} SCORES!!!"
-                                "away" -> "${awayTeam?.value?.name} SCORES!!!"
-                                else -> "GOAL!!!"
-                            },
-                            color = Color(0xFF388E3C), // Yeşil renk
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .offset(y = (LocalConfiguration.current.screenHeightDp * 0.75f).dp)
-                                .alpha(teamTextAlpha)
-                        )
-                    }
+                // Alt kısım (olaylar listesi)
+                Card(
+                    modifier = Modifier
+                        .weight(0.35f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        reverseLayout = true
+                    ) {
+                        items(items = matchEvents) { event ->
+                            when (event.eventType) {
+                                EventType.GOAL -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        horizontalArrangement = if (event.team == homeTeam?.value)
+                                            Arrangement.Start else Arrangement.End
+                                    ) {
+                                        if (event.team == awayTeam?.value) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
 
-                    if (showBallAnimation) {
-                        // Top animasyonu
-                        Icon(
-                            painter = painterResource(id = R.drawable.baseline_sports_soccer_24),
-                            contentDescription = "Goal",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .offset(
-                                    x = (LocalConfiguration.current.screenWidthDp * ballPosition).dp,
-                                    y = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
-                                )
-                                .rotate(ballRotation),
-                            tint = Color(0xFF388E3C) // Yeşil renk
-                        )
+                                        Column {
+                                            Text(
+                                                text = "${event.minute}' GOAL!",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp, // küçültüldü
+                                                color = Color(0xFF4CAF50)
+                                            )
+                                            Text(
+                                                text = event.player.name,
+                                                fontSize = 11.sp // küçültüldü
+                                            )
+                                            event.assist?.let {
+                                                Text(
+                                                    text = "Assist: ${it.name}",
+                                                    fontSize = 10.sp, // küçültüldü
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                        }
+
+                                        if (event.team == homeTeam?.value) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // Alt kısım (olaylar listesi)
-            Card(
-                modifier = Modifier
-                    .weight(0.35f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
-            ) {
-                LazyColumn(
+            // Gol yazısı animasyonu
+            if (showTeamAnimation) {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    reverseLayout = true
+                        .zIndex(1f)
+                        .background(Color.Black.copy(alpha = 0.3f))
                 ) {
-                    items(items = matchEvents) { event ->
-                        when (event.eventType) {
-                            EventType.GOAL -> {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = if (event.team == homeTeam?.value)
-                                        Arrangement.Start else Arrangement.End
-                                ) {
-                                    if (event.team == awayTeam?.value) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
+                    Text(
+                        text = when (currentTeamWithBall) {
+                            "home" -> "${homeTeam?.value?.name} SCORES!!!"
+                            "away" -> "${awayTeam?.value?.name} SCORES!!!"
+                            else -> "GOAL!!!"
+                        },
+                        color = Color.White,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .offset(y = (LocalConfiguration.current.screenHeightDp * 0.4f).dp)
+                            .alpha(teamTextAlpha)
+                    )
+                }
+            }
 
-                                    Column {
-                                        Text(
-                                            text = "${event.minute}' GOAL!",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp, // küçültüldü
-                                            color = Color(0xFF4CAF50)
-                                        )
-                                        Text(
-                                            text = event.player.name,
-                                            fontSize = 11.sp // küçültüldü
-                                        )
-                                        event.assist?.let {
-                                            Text(
-                                                text = "Assist: ${it.name}",
-                                                fontSize = 10.sp, // küçültüldü
-                                                color = Color.Gray
-                                            )
-                                        }
-                                    }
-
-                                    if (event.team == homeTeam?.value) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
-                        }
-                    }
+            // Top animasyonu en üstte
+            if (showBallAnimation) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(2f)  // En üstte olması için
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_sports_soccer_24),
+                        contentDescription = "Goal",
+                        modifier = Modifier
+                            .size(64.dp)
+                            .offset(
+                                x = (LocalConfiguration.current.screenWidthDp * ballPosition).dp,
+                                y = (LocalConfiguration.current.screenHeightDp * 0.4f).dp
+                            )
+                            .rotate(ballRotation),
+                        tint = Color(0xFF388E3C)  // Yeşil renge geri döndürelim
+                    )
                 }
             }
         }
