@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.denizcan.randomfootball.ui.screens.*
+import com.denizcan.randomfootball.ui.screens.playmatch.PlayMatchScreen
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")

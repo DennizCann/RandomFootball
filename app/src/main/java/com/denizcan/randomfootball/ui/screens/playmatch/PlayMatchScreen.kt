@@ -1,4 +1,4 @@
-package com.denizcan.randomfootball.ui.screens
+package com.denizcan.randomfootball.ui.screens.playmatch
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -28,7 +28,6 @@ import com.denizcan.randomfootball.data.model.Team
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlin.random.Random
 import androidx.compose.foundation.lazy.items
 import android.util.Log
 import com.denizcan.randomfootball.data.dao.FixtureDao
@@ -38,101 +37,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.denizcan.randomfootball.util.TeamUtils
-
-// Maç fazlarını temsil eden enum
-private enum class MatchPhase {
-    NOT_STARTED,      // 0. dakika - Maç başlamadı
-    FIRST_PHASE,      // 15. dakika
-    SECOND_PHASE,     // 30. dakika
-    THIRD_PHASE,      // 45. dakika
-    FOURTH_PHASE,     // 60. dakika
-    FIFTH_PHASE,      // 75. dakika
-    SIXTH_PHASE,      // 90. dakika
-    MATCH_ENDED       // 95. dakika - Maç bitti
-}
-
-// Takım istatistiklerini tutan data class
-private data class TeamStats(
-    val attackPoints: Int,
-    val defensePoints: Int
-)
-
-// Takımın ilk 11'ini formasyona göre seçen fonksiyon
-private fun selectFirstEleven(players: List<Player>, formation: String): List<Player> {
-    if (players.isEmpty()) {
-        return emptyList()
-    }
-
-    val firstEleven = mutableListOf<Player>()
-
-    // Kaleci seç (her zaman 1 tane)
-    val goalkeepers = players.filter { it.position == "Goalkeeper" }
-        .sortedByDescending { it.skill }
-
-    if (goalkeepers.isNotEmpty()) {
-        firstEleven.add(goalkeepers.first())
-    }
-
-    // Formasyonu parçala (örn: "4-3-3" -> [4,3,3])
-    val formationParts = formation.split("-").map { it.toInt() }
-
-    // Defans oyuncularını seç
-    val defenders = players.filter { it.position == "Defender" }
-        .sortedByDescending { it.skill }
-    firstEleven.addAll(defenders.take(formationParts[0]))
-
-    // Orta saha oyuncularını seç
-    val midfielders = players.filter { it.position == "Midfielder" }
-        .sortedByDescending { it.skill }
-    firstEleven.addAll(midfielders.take(formationParts[1]))
-
-    // Forvet oyuncularını seç
-    val forwards = players.filter { it.position == "Forward" }
-        .sortedByDescending { it.skill }
-    firstEleven.addAll(forwards.take(formationParts[2]))
-
-    return firstEleven
-}
-
-// Takım puanlarını formasyona göre hesaplayan fonksiyon
-private fun calculateTeamStats(players: List<Player>, formation: String): TeamStats {
-    // İlk 11'i seç
-    val firstEleven = selectFirstEleven(players, formation)
-
-    // Savunma puanı (Kaleci + Defans oyuncuları)
-    val defensePoints = firstEleven
-        .filter { it.position == "Goalkeeper" || it.position == "Defender" }
-        .sumOf { it.skill }
-
-    // Hücum puanı (Orta saha + Forvet oyuncuları)
-    val attackPoints = firstEleven
-        .filter { it.position == "Midfielder" || it.position == "Forward" }
-        .sumOf { it.skill }
-
-    Log.d("PlayMatchScreen", """
-        Team Stats:
-        First Eleven Size: ${firstEleven.size}
-        Defense Players: ${firstEleven.count { it.position == "Goalkeeper" || it.position == "Defender" }}
-        Attack Players: ${firstEleven.count { it.position == "Midfielder" || it.position == "Forward" }}
-        Defense Points: $defensePoints
-        Attack Points: $attackPoints
-    """.trimIndent())
-
-    return TeamStats(attackPoints, defensePoints)
-}
-
-// Event data class'ı
-data class MatchEvent(
-    val minute: Int,
-    val eventType: EventType,
-    val player: Player,
-    val assist: Player? = null,
-    val team: Team
-)
-
-enum class EventType {
-    GOAL
-}
+import com.denizcan.randomfootball.ui.screens.playmatch.PlayMatchUtils.MatchPhase
+import com.denizcan.randomfootball.ui.screens.playmatch.PlayMatchUtils.MatchEvent
+import com.denizcan.randomfootball.ui.screens.playmatch.PlayMatchUtils.EventType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -202,14 +109,14 @@ fun PlayMatchScreen(
     // Takım puanlarını hesapla
     val homeTeamStats = remember(homeFirstEleven, homeTeamFormation) {
         homePlayers?.value?.let { players ->
-            calculateTeamStats(players, homeTeamFormation)
-        } ?: TeamStats(0, 0)
+            TeamUtils.calculateTeamStats(players, homeTeamFormation)
+        } ?: TeamUtils.TeamStats(0, 0)
     }
 
     val awayTeamStats = remember(awayFirstEleven, awayTeamFormation) {
         awayPlayers?.value?.let { players ->
-            calculateTeamStats(players, awayTeamFormation)
-        } ?: TeamStats(0, 0)
+            TeamUtils.calculateTeamStats(players, awayTeamFormation)
+        } ?: TeamUtils.TeamStats(0, 0)
     }
 
     // Maç state'leri
@@ -338,30 +245,144 @@ fun PlayMatchScreen(
         }
     }
 
-    // Gol atan oyuncuyu seçmek için yardımcı fonksiyon
-    fun selectScorer(players: List<Player>): Player {
-        return when (Random.nextInt(100)) {
-            in 0..55 -> players.filter { it.position == "Forward" }  // %55 Forvet
-            in 56..85 -> players.filter { it.position == "Midfielder" }  // %30 Orta Saha
-            else -> players.filter { it.position == "Defender" }  // %15 Defans
-        }.randomOrNull() ?: players.filter {
-            it.position != "Goalkeeper"
-        }.random()
+    // Gol atan oyuncuyu seçme işlemini PlayMatchUtils'den çağıralım
+    suspend fun handleGoal(scoringTeam: Team, opposingTeam: Team) {
+        val manager = database.managerDao().getManagerById(scoringTeam.managerId).firstOrNull()
+            ?: throw Exception("Manager not found")
+
+        val scoringTeamPlayers = playerDao.getPlayersByTeamId(scoringTeam.teamId).first()
+        val firstEleven = TeamUtils.selectFirstEleven(scoringTeamPlayers, manager.formation)
+
+        // PlayMatchUtils'den çağırıyoruz
+        val scorer = PlayMatchUtils.selectScorer(firstEleven)
+        val assist = PlayMatchUtils.selectAssist(firstEleven, scorer)
+
+        // Gol atan oyuncu için kayıt oluştur ve güncelle
+        playerStatsDao.createStatsIfNotExists(scorer.playerId, gameId)
+
+        // İstatistikleri güncellemeden önce kontrol et
+        val beforeStats = playerStatsDao.getPlayerStatsDirectly(scorer.playerId, gameId)
+        Log.d("PlayMatchScreen", """
+            Before update - Scorer ${scorer.name}:
+            Goals: ${beforeStats?.goals}
+            Assists: ${beforeStats?.assists}
+            Appearances: ${beforeStats?.appearances}
+        """.trimIndent())
+
+        playerStatsDao.updateMatchStats(
+            playerId = scorer.playerId,
+            gameId = gameId,
+            goals = 1,
+            assists = 0
+        )
+
+        // İstatistikleri güncellemeden sonra kontrol et
+        val afterStats = playerStatsDao.getPlayerStatsDirectly(scorer.playerId, gameId)
+        Log.d("PlayMatchScreen", """
+            After update - Scorer ${scorer.name}:
+            Goals: ${afterStats?.goals}
+            Assists: ${afterStats?.assists}
+            Appearances: ${afterStats?.appearances}
+        """.trimIndent())
+
+        // Aktif istatistikleri kontrol et
+        val activeStats = playerStatsDao.getActiveStatsCount(gameId)
+        Log.d("PlayMatchScreen", "Active stats count in game $gameId: $activeStats")
+
+        // Asist yapan oyuncu için kayıt oluştur ve güncelle
+        assist?.let {
+            playerStatsDao.createStatsIfNotExists(it.playerId, gameId)
+            playerStatsDao.updateMatchStats(
+                playerId = it.playerId,
+                gameId = gameId,
+                goals = 0,
+                assists = 1
+            )
+        }
+
+        // Olayı listeye ekle
+        matchEvents = matchEvents + MatchEvent(
+            minute = currentMinute,
+            eventType = EventType.GOAL,
+            player = scorer,
+            assist = assist,
+            team = scoringTeam
+        )
     }
 
-    // Asist yapan oyuncuyu seçmek için yardımcı fonksiyon
-    fun selectAssist(players: List<Player>, scorer: Player): Player? {
-        val eligiblePlayers = players.filter { it.playerId != scorer.playerId && it.position != "Goalkeeper" }
-        if (eligiblePlayers.isEmpty()) return null
+    // Faz geçişlerini güncelle
+    matchFunctions.proceedToNextPhase = {
+        currentPhase = PlayMatchUtils.getNextPhase(currentPhase)
+        currentMinute = PlayMatchUtils.getMinuteForPhase(currentPhase)
 
-        return when (Random.nextInt(100)) {
-            in 0..50 -> eligiblePlayers.filter { it.position == "Midfielder" }  // %50 Orta Saha
-            in 51..80 -> eligiblePlayers.filter { it.position == "Forward" }    // %30 Forvet
-            else -> eligiblePlayers.filter { it.position == "Defender" }        // %20 Defans
-        }.randomOrNull()
+        when (currentPhase) {
+            MatchPhase.FIRST_PHASE -> {
+                currentTeamWithBall = "home"
+                matchFunctions.simulateFirstPhase?.invoke()
+            }
+            MatchPhase.SECOND_PHASE,
+            MatchPhase.THIRD_PHASE,
+            MatchPhase.FOURTH_PHASE,
+            MatchPhase.FIFTH_PHASE,
+            MatchPhase.SIXTH_PHASE -> {
+                currentTeamWithBall = "home"
+                matchFunctions.simulateRandomPhase?.invoke("home")
+            }
+            MatchPhase.MATCH_ENDED -> {
+                matchFunctions.endMatch?.invoke()
+            }
+            else -> {}
+        }
     }
 
-    // Diğer maçların simülasyonu için yardımcı fonksiyon - Önce tanımlanmalı
+    // Random faz simülasyonunu güncelle
+    matchFunctions.simulateRandomPhase = { team ->
+        if (PlayMatchUtils.shouldScore()) {
+            if (team == "home") {
+                homeScore++
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        homeTeam?.value?.let { scoringTeam ->
+                            awayTeam?.value?.let { opposingTeam ->
+                                handleGoal(scoringTeam, opposingTeam)
+                            }
+                        }
+                    }
+                }
+            } else {
+                awayScore++
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        awayTeam?.value?.let { scoringTeam ->
+                            homeTeam?.value?.let { opposingTeam ->
+                                handleGoal(scoringTeam, opposingTeam)
+                            }
+                        }
+                    }
+                }
+            }
+            currentTeamWithBall = team
+            showBallAnimation = true
+        } else {
+            when (team) {
+                "home" -> {
+                    homeTeamPlayed = true
+                    if (!awayTeamPlayed) {
+                        currentTeamWithBall = "away"
+                        matchFunctions.simulateRandomPhase?.invoke("away")
+                    } else {
+                        checkPhaseCompletion()
+                    }
+                }
+                "away" -> {
+                    awayTeamPlayed = true
+                    checkPhaseCompletion()
+                }
+            }
+        }
+    }
+
+    // simulateOtherMatch fonksiyonunda da güncellemeler yapalım
     suspend fun simulateOtherMatch(
         database: AppDatabase,
         weekFixture: Fixture,
@@ -406,8 +427,8 @@ fun PlayMatchScreen(
             }
 
             // Takım puanlarını hesapla
-            val homeStats = calculateTeamStats(homeTeamPlayers, homeManager.formation)
-            val awayStats = calculateTeamStats(awayTeamPlayers, awayManager.formation)
+            val homeStats = TeamUtils.calculateTeamStats(homeTeamPlayers, homeManager.formation)
+            val awayStats = TeamUtils.calculateTeamStats(awayTeamPlayers, awayManager.formation)
 
             var homeGoals = 0
             var awayGoals = 0
@@ -416,30 +437,30 @@ fun PlayMatchScreen(
             // İlk faz - Hücum-Savunma karşılaştırması
             if (homeStats.attackPoints > awayStats.defensePoints) {
                 homeGoals++
-                val scorer = selectScorer(homeFirstEleven)
-                val assist = selectAssist(homeFirstEleven, scorer)
+                val scorer = PlayMatchUtils.selectScorer(homeFirstEleven)
+                val assist = PlayMatchUtils.selectAssist(homeFirstEleven, scorer)
                 scorers.add(scorer to assist)
             }
 
             if (awayStats.attackPoints > homeStats.defensePoints) {
                 awayGoals++
-                val scorer = selectScorer(awayFirstEleven)
-                val assist = selectAssist(awayFirstEleven, scorer)
+                val scorer = PlayMatchUtils.selectScorer(awayFirstEleven)
+                val assist = PlayMatchUtils.selectAssist(awayFirstEleven, scorer)
                 scorers.add(scorer to assist)
             }
 
-            // Diğer fazlar için de aynı mantık
+            // Diğer fazlar için rastgele gol kontrolü
             repeat(5) {
-                if ((1..5).random() == 5) {
+                if (PlayMatchUtils.shouldScore()) {
                     homeGoals++
-                    val scorer = selectScorer(homeFirstEleven)
-                    val assist = selectAssist(homeFirstEleven, scorer)
+                    val scorer = PlayMatchUtils.selectScorer(homeFirstEleven)
+                    val assist = PlayMatchUtils.selectAssist(homeFirstEleven, scorer)
                     scorers.add(scorer to assist)
                 }
-                if ((1..5).random() == 5) {
+                if (PlayMatchUtils.shouldScore()) {
                     awayGoals++
-                    val scorer = selectScorer(awayFirstEleven)
-                    val assist = selectAssist(awayFirstEleven, scorer)
+                    val scorer = PlayMatchUtils.selectScorer(awayFirstEleven)
+                    val assist = PlayMatchUtils.selectAssist(awayFirstEleven, scorer)
                     scorers.add(scorer to assist)
                 }
             }
@@ -505,108 +526,50 @@ fun PlayMatchScreen(
         }
     }
 
-    // Gol olayını işleyecek fonksiyon
-    suspend fun handleGoal(scoringTeam: Team, opposingTeam: Team) {
-        val manager = database.managerDao().getManagerById(scoringTeam.managerId).firstOrNull()
-            ?: throw Exception("Manager not found")
-
-        val scoringTeamPlayers = playerDao.getPlayersByTeamId(scoringTeam.teamId).first()
-        val firstEleven = TeamUtils.selectFirstEleven(scoringTeamPlayers, manager.formation)
-
-        // Gol atan oyuncuyu seç
-        val scorer = selectScorer(firstEleven)
-
-        // Gol atan oyuncu için kayıt oluştur ve güncelle
-        playerStatsDao.createStatsIfNotExists(scorer.playerId, gameId)
-
-        // İstatistikleri güncellemeden önce kontrol et
-        val beforeStats = playerStatsDao.getPlayerStatsDirectly(scorer.playerId, gameId)
-        Log.d("PlayMatchScreen", """
-            Before update - Scorer ${scorer.name}:
-            Goals: ${beforeStats?.goals}
-            Assists: ${beforeStats?.assists}
-            Appearances: ${beforeStats?.appearances}
-        """.trimIndent())
-
-        playerStatsDao.updateMatchStats(
-            playerId = scorer.playerId,
-            gameId = gameId,
-            goals = 1,
-            assists = 0
-        )
-
-        // İstatistikleri güncellemeden sonra kontrol et
-        val afterStats = playerStatsDao.getPlayerStatsDirectly(scorer.playerId, gameId)
-        Log.d("PlayMatchScreen", """
-            After update - Scorer ${scorer.name}:
-            Goals: ${afterStats?.goals}
-            Assists: ${afterStats?.assists}
-            Appearances: ${afterStats?.appearances}
-        """.trimIndent())
-
-        // Aktif istatistikleri kontrol et
-        val activeStats = playerStatsDao.getActiveStatsCount(gameId)
-        Log.d("PlayMatchScreen", "Active stats count in game $gameId: $activeStats")
-
-        // Asist yapan oyuncuyu seç
-        val assist = selectAssist(firstEleven, scorer)
-
-        // Asist yapan oyuncu için kayıt oluştur ve güncelle
-        assist?.let {
-            playerStatsDao.createStatsIfNotExists(it.playerId, gameId)
-            playerStatsDao.updateMatchStats(
-                playerId = it.playerId,
-                gameId = gameId,
-                goals = 0,
-                assists = 1
-            )
-        }
-
-        // Olayı listeye ekle
-        matchEvents = matchEvents + MatchEvent(
-            minute = currentMinute,
-            eventType = EventType.GOAL,
-            player = scorer,
-            assist = assist,
-            team = scoringTeam
-        )
-    }
-
-    // Fonksiyonları tanımla
+    // Maç simülasyonu fonksiyonları
     matchFunctions.simulateFirstPhase = {
         homePlayers?.value?.let { hPlayers ->
             awayPlayers?.value?.let { aPlayers ->
-                val homeStats = calculateTeamStats(hPlayers, homeTeamFormation)
-                val awayStats = calculateTeamStats(aPlayers, awayTeamFormation)
-
                 when (currentTeamWithBall) {
                     "home" -> {
-                        if (homeStats.attackPoints > awayStats.defensePoints) {
-                            homeScore++
-                            showBallAnimation = true
-                            // Gol olayını işle - scope.launch kaldırıldı
-                            scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    homeTeam?.value?.let { team ->
-                                        awayTeam?.value?.let { opposingTeam ->
-                                            handleGoal(team, opposingTeam)
+                        // Eğer henüz oynamadıysa
+                        if (!homeTeamPlayed) {
+                            val homeAttackPoints = TeamUtils.calculateAttackPoints(hPlayers)
+                            val awayDefensePoints = TeamUtils.calculateDefensePoints(aPlayers)
+
+                            if (homeAttackPoints > awayDefensePoints) {
+                                homeScore++
+                                showBallAnimation = true
+                                scope.launch {
+                                    withContext(Dispatchers.IO) {
+                                        homeTeam?.value?.let { team ->
+                                            awayTeam?.value?.let { opposingTeam ->
+                                                handleGoal(team, opposingTeam)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        } else {
-                            homeTeamPlayed = true
-                            if (!awayTeamPlayed) {
+                            } else if (!awayTeamPlayed) {
                                 currentTeamWithBall = "away"
                                 matchFunctions.simulateFirstPhase?.invoke()
                             }
+                            homeTeamPlayed = true // Sadece bir kere çağrılıyor
                         }
                     }
                     "away" -> {
-                        if (awayStats.attackPoints > homeStats.defensePoints) {
+                        // Eğer ev sahibi takım gol attıysa, deplasman takımı gol atamaz
+                        if (homeScore > 0) {
+                            awayTeamPlayed = true
+                            checkPhaseCompletion()
+                            return@let
+                        }
+
+                        val awayAttackPoints = TeamUtils.calculateAttackPoints(aPlayers)
+                        val homeDefensePoints = TeamUtils.calculateDefensePoints(hPlayers)
+
+                        if (awayAttackPoints > homeDefensePoints) {
                             awayScore++
                             showBallAnimation = true
-                            // Gol olayını işle - scope.launch kaldırıldı
                             scope.launch {
                                 withContext(Dispatchers.IO) {
                                     awayTeam?.value?.let { team ->
@@ -616,113 +579,12 @@ fun PlayMatchScreen(
                                     }
                                 }
                             }
-                        } else {
-                            awayTeamPlayed = true
-                            checkPhaseCompletion()
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    matchFunctions.simulateRandomPhase = { team ->
-        if ((1..5).random() == 5) {
-            if (team == "home") {
-                homeScore++
-                // Gol olayını işle
-                scope.launch {
-                    withContext(Dispatchers.IO) {
-                        homeTeam?.value?.let { scoringTeam ->
-                            awayTeam?.value?.let { opposingTeam ->
-                                handleGoal(scoringTeam, opposingTeam)
-                            }
-                        }
-                    }
-                }
-            } else {
-                awayScore++
-                // Gol olayını işle
-                scope.launch {
-                    withContext(Dispatchers.IO) {
-                        awayTeam?.value?.let { scoringTeam ->
-                            homeTeam?.value?.let { opposingTeam ->
-                                handleGoal(scoringTeam, opposingTeam)
-                            }
-                        }
-                    }
-                }
-            }
-            currentTeamWithBall = team
-            showBallAnimation = true
-        } else {
-            when (team) {
-                "home" -> {
-                    homeTeamPlayed = true
-                    if (!awayTeamPlayed) {
-                        currentTeamWithBall = "away"
-                        matchFunctions.simulateRandomPhase?.invoke("away")
-                    } else {
+                        awayTeamPlayed = true
                         checkPhaseCompletion()
                     }
                 }
-                "away" -> {
-                    awayTeamPlayed = true
-                    checkPhaseCompletion()
-                }
             }
-        }
-    }
-
-    matchFunctions.proceedToNextPhase = {
-        when (currentPhase) {
-            MatchPhase.NOT_STARTED -> {
-                currentPhase = MatchPhase.FIRST_PHASE
-                currentMinute = 15
-            }
-
-            MatchPhase.FIRST_PHASE -> {
-                currentPhase = MatchPhase.SECOND_PHASE
-                currentMinute = 30
-                currentTeamWithBall = "home"
-                matchFunctions.simulateRandomPhase?.invoke("home")
-            }
-
-            MatchPhase.SECOND_PHASE -> {
-                currentPhase = MatchPhase.THIRD_PHASE
-                currentMinute = 45
-                currentTeamWithBall = "home"
-                matchFunctions.simulateRandomPhase?.invoke("home")
-            }
-
-            MatchPhase.THIRD_PHASE -> {
-                currentPhase = MatchPhase.FOURTH_PHASE
-                currentMinute = 60
-                currentTeamWithBall = "home"
-                matchFunctions.simulateRandomPhase?.invoke("home")
-            }
-
-            MatchPhase.FOURTH_PHASE -> {
-                currentPhase = MatchPhase.FIFTH_PHASE
-                currentMinute = 75
-                currentTeamWithBall = "home"
-                matchFunctions.simulateRandomPhase?.invoke("home")
-            }
-
-            MatchPhase.FIFTH_PHASE -> {
-                currentPhase = MatchPhase.SIXTH_PHASE
-                currentMinute = 90
-                currentTeamWithBall = "home"
-                matchFunctions.simulateRandomPhase?.invoke("home")
-            }
-
-            MatchPhase.SIXTH_PHASE -> {
-                currentPhase = MatchPhase.MATCH_ENDED
-                currentMinute = 95
-                matchFunctions.endMatch?.invoke()
-            }
-
-            else -> {}
         }
     }
 

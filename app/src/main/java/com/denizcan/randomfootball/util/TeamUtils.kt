@@ -1,6 +1,7 @@
 package com.denizcan.randomfootball.util
 
 import com.denizcan.randomfootball.data.model.Player
+import android.util.Log
 
 object TeamUtils {
     fun getBestEleven(players: List<Player>, formation: String): List<Player> {
@@ -54,9 +55,52 @@ object TeamUtils {
         }
     }
 
-    // selectFirstEleven fonksiyonu getBestEleven ile aynı işi yapıyor, 
+    // selectFirstEleven fonksiyonu getBestEleven ile aynı işi yapıyor,
     // bu yüzden getBestEleven'ı kullanabiliriz
     fun selectFirstEleven(players: List<Player>, formation: String): List<Player> {
         return getBestEleven(players, formation)
     }
-} 
+
+    fun calculateAttackPoints(players: List<Player>): Int {
+        return players
+            .filter { it.position == "Midfielder" || it.position == "Forward" }
+            .sumOf { it.skill }
+    }
+
+    fun calculateDefensePoints(players: List<Player>): Int {
+        return players
+            .filter { it.position == "Goalkeeper" || it.position == "Defender" }
+            .sumOf { it.skill }
+    }
+
+    fun calculateTeamStats(players: List<Player>, formation: String): TeamStats {
+        // İlk 11'i seç
+        val firstEleven = selectFirstEleven(players, formation)
+
+        // Savunma puanı (Kaleci + Defans oyuncuları)
+        val defensePoints = firstEleven
+            .filter { it.position == "Goalkeeper" || it.position == "Defender" }
+            .sumOf { it.skill }
+
+        // Hücum puanı (Orta saha + Forvet oyuncuları)
+        val attackPoints = firstEleven
+            .filter { it.position == "Midfielder" || it.position == "Forward" }
+            .sumOf { it.skill }
+
+        Log.d("TeamUtils", """
+            Team Stats:
+            First Eleven Size: ${firstEleven.size}
+            Defense Players: ${firstEleven.count { it.position == "Goalkeeper" || it.position == "Defender" }}
+            Attack Players: ${firstEleven.count { it.position == "Midfielder" || it.position == "Forward" }}
+            Defense Points: $defensePoints
+            Attack Points: $attackPoints
+        """.trimIndent())
+
+        return TeamStats(attackPoints, defensePoints)
+    }
+    data class TeamStats(
+        val attackPoints: Int,
+        val defensePoints: Int
+    )
+}
+
